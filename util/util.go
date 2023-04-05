@@ -1,15 +1,16 @@
 package util
 
 import (
+	"cvedb-cli/client/request"
+	"cvedb-cli/types"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-	"trickest-cli/client/request"
-	"trickest-cli/types"
+
+	"github.com/google/uuid"
 
 	"github.com/hako/durafmt"
 )
@@ -17,7 +18,7 @@ import (
 type UnexpectedResponse map[string]interface{}
 
 const (
-	BaseURL = "https://hive-api.beta.trickest.com/"
+	BaseURL = "https://hive-api.beta.cvedb.com/"
 )
 
 var (
@@ -30,7 +31,7 @@ var (
 )
 
 func CreateRequest() {
-	request.Trickest = request.New().Endpoint(Cfg.BaseUrl).Version("v1").Header("Authorization", "Token "+GetToken())
+	request.CVEDB = request.New().Endpoint(Cfg.BaseUrl).Version("v1").Header("Authorization", "Token "+GetToken())
 }
 
 func FormatPath() string {
@@ -46,11 +47,11 @@ func FormatPath() string {
 
 func GetToken() string {
 	if Cfg.User.Token == "" {
-		tokenEnv, tokenSet := os.LookupEnv("TRICKEST_TOKEN")
+		tokenEnv, tokenSet := os.LookupEnv("CVEDB_TOKEN")
 		if tokenSet {
 			Cfg.User.Token = tokenEnv
 		} else {
-			fmt.Println("Trickest authentication token not set! Use --token or TRICKEST_TOKEN environment variable.")
+			fmt.Println("CVEDB authentication token not set! Use --token or CVEDB_TOKEN environment variable.")
 			os.Exit(0)
 		}
 	}
@@ -63,7 +64,7 @@ func GetVault() uuid.UUID {
 		if user != nil {
 			Cfg.User.VaultId = user.Profile.VaultInfo.ID
 		} else {
-			fmt.Println("Couldn't get default vault ID! Check your Trickest token.")
+			fmt.Println("Couldn't get default vault ID! Check your CVEDB token.")
 			os.Exit(0)
 		}
 	}
@@ -71,7 +72,7 @@ func GetVault() uuid.UUID {
 }
 
 func GetMe() *types.User {
-	resp := request.Trickest.Get().DoF("users/me/")
+	resp := request.CVEDB.Get().DoF("users/me/")
 	if resp == nil || resp.Status() != http.StatusOK {
 		request.ProcessUnexpectedResponse(resp)
 	}
@@ -87,7 +88,7 @@ func GetMe() *types.User {
 }
 
 func GetHiveInfo() *types.Hive {
-	resp := request.Trickest.Get().DoF("hive/?vault=%s&demo=true", GetVault())
+	resp := request.CVEDB.Get().DoF("hive/?vault=%s&demo=true", GetVault())
 	if resp == nil || resp.Status() != http.StatusOK {
 		request.ProcessUnexpectedResponse(resp)
 	}

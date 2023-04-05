@@ -1,19 +1,20 @@
 package store
 
 import (
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/xlab/treeprint"
 	"math"
 	"strings"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
+
+	"github.com/spf13/cobra"
+	"github.com/xlab/treeprint"
 )
 
 // storeListToolsCmd represents the storeListTools command
 var storeListToolsCmd = &cobra.Command{
 	Use:   "tools",
-	Short: "List tools from the Trickest store",
+	Short: "List tools from the CVEDB store",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		tools := list.GetTools(math.MaxInt, "", "")

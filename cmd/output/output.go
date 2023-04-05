@@ -1,6 +1,10 @@
 package output
 
 import (
+	"cvedb-cli/client/request"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +15,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"trickest-cli/client/request"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
-	"trickest-cli/util"
 
 	"github.com/google/uuid"
 
@@ -295,7 +295,7 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 	urlReq := "subjob-output/?subjob=" + subJob.ID.String()
 	urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-job output data.")
 		return nil
@@ -362,7 +362,7 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 	}
 
 	for i, output := range subJobOutputs.Results {
-		resp := request.Trickest.Post().DoF("subjob-output/%s/signed_url/", output.ID)
+		resp := request.CVEDB.Post().DoF("subjob-output/%s/signed_url/", output.ID)
 		if resp == nil {
 			fmt.Println("Error: Couldn't get sub-job outputs signed URL.")
 			continue
@@ -450,7 +450,7 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 }
 
 func GetRunByID(id uuid.UUID) *types.Run {
-	resp := request.Trickest.Get().DoF("run/%s/", id)
+	resp := request.CVEDB.Get().DoF("run/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get run!")
 		os.Exit(0)
@@ -478,7 +478,7 @@ func getSubJobs(runID uuid.UUID) []types.SubJob {
 	urlReq := "subjob/?run=" + runID.String()
 	urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-jobs!")
 		return nil
@@ -511,7 +511,7 @@ func GetRuns(workflowID uuid.UUID, pageSize int) []types.Run {
 		urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 	}
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get runs!")
 		return nil
@@ -532,7 +532,7 @@ func GetRuns(workflowID uuid.UUID, pageSize int) []types.Run {
 }
 
 func GetWorkflowVersionByID(id uuid.UUID) *types.WorkflowVersionDetailed {
-	resp := request.Trickest.Get().DoF("store/workflow-version/%s/", id)
+	resp := request.CVEDB.Get().DoF("store/workflow-version/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get workflow version!")
 		return nil
@@ -556,7 +556,7 @@ func getChildrenSubJobs(subJobID uuid.UUID) []types.SubJob {
 	urlReq := "subjob/" + subJobID.String() + "/children/"
 	urlReq += "?page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get children sub-jobs!")
 		return nil
@@ -577,7 +577,7 @@ func getChildrenSubJobs(subJobID uuid.UUID) []types.SubJob {
 }
 
 func getSubJobByID(id uuid.UUID) *types.SubJob {
-	resp := request.Trickest.Get().DoF("subjob/%s/", id)
+	resp := request.CVEDB.Get().DoF("subjob/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-job!")
 		return nil

@@ -1,17 +1,18 @@
 package create
 
 import (
+	"cvedb-cli/client/request"
+	"cvedb-cli/cmd/delete"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strings"
-	"trickest-cli/client/request"
-	"trickest-cli/cmd/delete"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
-	"trickest-cli/util"
+
+	"github.com/google/uuid"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +22,7 @@ var description string
 // CreateCmd represents the create command
 var CreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Creates a space or a project on the Trickest platform",
+	Short: "Creates a space or a project on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()
@@ -70,7 +71,7 @@ func createSpace(name string, description string) {
 		return
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("spaces/?vault=%s", util.GetVault())
+	resp := request.CVEDB.Post().Body(data).DoF("spaces/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create space.")
 		return
@@ -111,7 +112,7 @@ func CreateProject(name string, description string, spaceName string) *types.Pro
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("projects/?vault=%s", util.GetVault())
+	resp := request.CVEDB.Post().Body(data).DoF("projects/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create project.")
 		os.Exit(0)
@@ -168,7 +169,7 @@ func CreateWorkflow(name, description string, spaceID, projectID uuid.UUID, dele
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("store/workflow/?vault=%s", util.GetVault())
+	resp := request.CVEDB.Post().Body(data).DoF("store/workflow/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create workflow.")
 		os.Exit(0)

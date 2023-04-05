@@ -1,14 +1,14 @@
 package get
 
 import (
+	"cvedb-cli/cmd/execute"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"fmt"
 	"strings"
 	"time"
-	"trickest-cli/cmd/execute"
-	"trickest-cli/cmd/list"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
-	"trickest-cli/util"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"

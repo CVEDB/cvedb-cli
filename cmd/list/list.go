@@ -1,18 +1,19 @@
 package list
 
 import (
+	"cvedb-cli/client/request"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-	"trickest-cli/client/request"
-	"trickest-cli/types"
-	"trickest-cli/util"
+
+	"github.com/google/uuid"
 
 	"github.com/spf13/cobra"
 	"github.com/xlab/treeprint"
@@ -21,7 +22,7 @@ import (
 // ListCmd represents the list command
 var ListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Lists objects on the Trickest platform",
+	Short: "Lists objects on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()
@@ -170,7 +171,7 @@ func getSpaces(name string) []types.Space {
 		urlReq += "&name=" + url.QueryEscape(name)
 	}
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get spaces!")
 		os.Exit(0)
@@ -200,7 +201,7 @@ func GetSpaceByName(name string) *types.SpaceDetailed {
 }
 
 func getSpaceByID(id uuid.UUID) *types.SpaceDetailed {
-	resp := request.Trickest.Get().DoF("spaces/%s/", id.String())
+	resp := request.CVEDB.Get().DoF("spaces/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Error: Couldn't get space by ID!")
 		os.Exit(0)
@@ -237,7 +238,7 @@ func GetWorkflows(projectID, spaceID uuid.UUID, search string, store bool) []typ
 		urlReq += "&space=" + spaceID.String()
 	}
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get workflows!")
 		os.Exit(0)
@@ -258,7 +259,7 @@ func GetWorkflows(projectID, spaceID uuid.UUID, search string, store bool) []typ
 }
 
 func GetWorkflowByID(id uuid.UUID) *types.Workflow {
-	resp := request.Trickest.Get().DoF("store/workflow/%s/", id.String())
+	resp := request.CVEDB.Get().DoF("store/workflow/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Error: Couldn't get workflow by ID!")
 		os.Exit(0)
@@ -387,7 +388,7 @@ func GetTools(pageSize int, search string, name string) []types.Tool {
 		urlReq += "&name=" + name
 	}
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get tools!")
 		os.Exit(0)

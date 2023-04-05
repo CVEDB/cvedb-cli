@@ -2,9 +2,14 @@ package execute
 
 import (
 	"bytes"
+	"cvedb-cli/client/request"
+	"cvedb-cli/cmd/delete"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"math"
 	"mime/multipart"
@@ -14,18 +19,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"trickest-cli/client/request"
-	"trickest-cli/cmd/delete"
-	"trickest-cli/cmd/list"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
-	"trickest-cli/util"
+
+	"github.com/google/uuid"
 
 	"github.com/schollz/progressbar/v3"
 )
 
 func getSplitter() *types.Splitter {
-	resp := request.Trickest.Get().DoF("store/splitter/")
+	resp := request.CVEDB.Get().DoF("store/splitter/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't get splitter.")
 	}
@@ -76,7 +77,7 @@ func getScripts(pageSize int, search string, name string) []types.Script {
 		urlReq += "&name=" + name
 	}
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get scripts!")
 		return nil
@@ -109,7 +110,7 @@ func createRun(versionID uuid.UUID, watch bool, machines *types.Bees, outputNode
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("run/")
+	resp := request.CVEDB.Post().Body(data).DoF("run/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't create run!")
 		os.Exit(0)
@@ -160,7 +161,7 @@ func createNewVersion(version *types.WorkflowVersionDetailed) *types.WorkflowVer
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("store/workflow-version/")
+	resp := request.CVEDB.Post().Body(data).DoF("store/workflow-version/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't create version!")
 		os.Exit(0)
@@ -243,7 +244,7 @@ func uploadFile(filePath string) string {
 }
 
 func GetLatestWorkflowVersion(workflowID uuid.UUID) *types.WorkflowVersionDetailed {
-	resp := request.Trickest.Get().DoF("store/workflow-version/latest/?workflow=%s", workflowID)
+	resp := request.CVEDB.Get().DoF("store/workflow-version/latest/?workflow=%s", workflowID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get latest workflow version!")
 		os.Exit(0)
@@ -278,7 +279,7 @@ func copyWorkflow(destinationSpaceID, destinationProjectID, workflowID uuid.UUID
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Post().Body(data).DoF("store/workflow/%s/copy/", workflowID)
+	resp := request.CVEDB.Post().Body(data).DoF("store/workflow/%s/copy/", workflowID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't copy workflow!")
 		os.Exit(0)
@@ -307,7 +308,7 @@ func updateWorkflow(workflow *types.Workflow, deleteProjectOnError bool) {
 		os.Exit(0)
 	}
 
-	resp := request.Trickest.Patch().Body(data).DoF("store/workflow/%s/", workflow.ID)
+	resp := request.CVEDB.Patch().Body(data).DoF("store/workflow/%s/", workflow.ID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't update workflow!")
 		os.Exit(0)
@@ -401,7 +402,7 @@ func GetAvailableMachines() types.Bees {
 }
 
 func GetRunByID(id uuid.UUID) *types.Run {
-	resp := request.Trickest.Get().DoF("run/%s/", id)
+	resp := request.CVEDB.Get().DoF("run/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get run!")
 		os.Exit(0)
@@ -429,7 +430,7 @@ func GetSubJobs(runID uuid.UUID) []types.SubJob {
 	urlReq := "subjob/?run=" + runID.String()
 	urlReq = urlReq + "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-jobs!")
 		os.Exit(0)
@@ -450,7 +451,7 @@ func GetSubJobs(runID uuid.UUID) []types.SubJob {
 }
 
 func stopRun(runID uuid.UUID) {
-	resp := request.Trickest.Post().DoF("run/%s/stop/", runID)
+	resp := request.CVEDB.Post().DoF("run/%s/stop/", runID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't stop run!")
 		os.Exit(0)
@@ -527,11 +528,11 @@ func getNodeNameFromConnectionID(id string) string {
 	return idSplit[1]
 }
 
-func getFiles() []types.TrickestFile {
+func getFiles() []types.CVEDBFile {
 	urlReq := "file/?vault=" + util.GetVault().String()
 	urlReq = urlReq + "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.Trickest.Get().DoF(urlReq)
+	resp := request.CVEDB.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get files!")
 		os.Exit(0)
@@ -563,14 +564,14 @@ func fileExistsOnPlatform(name string) bool {
 
 func uploadFilesIfNeeded(primitiveNodes map[string]*types.PrimitiveNode) {
 	for _, pNode := range primitiveNodes {
-		if pNode.Type == "FILE" && strings.HasPrefix(pNode.Value.(string), "trickest://file/") {
-			fileName := strings.TrimPrefix(pNode.Value.(string), "trickest://file/")
+		if pNode.Type == "FILE" && strings.HasPrefix(pNode.Value.(string), "cvedb://file/") {
+			fileName := strings.TrimPrefix(pNode.Value.(string), "cvedb://file/")
 			if pNode.UpdateFile != nil && *pNode.UpdateFile {
 				pNode.Label = uploadFile(fileName)
 			} else {
 				if !fileExistsOnPlatform(fileName) {
 					fmt.Println("\"" + fileName + "\" hasn't been uploaded yet or has been deleted from the platform." +
-						" Try uploading it without the \"trickest://file/\" prefix.")
+						" Try uploading it without the \"cvedb://file/\" prefix.")
 					os.Exit(0)
 				}
 			}
@@ -612,8 +613,8 @@ func getToolScriptOrSplitterFromYAMLNode(node types.WorkflowYAMLNode) (*types.To
 			splitter = getSplitter()
 			if splitter == nil {
 				fmt.Println("Couldn't find a tool named " + storeName + " in the store!")
-				fmt.Println("Use \"trickest store list\" to see all available workflows and tools, " +
-					"or search the store using \"trickest store search <name/description>\"")
+				fmt.Println("Use \"cvedb store list\" to see all available workflows and tools, " +
+					"or search the store using \"cvedb store search <name/description>\"")
 				os.Exit(0)
 			}
 		} else {

@@ -34,7 +34,7 @@ type Response struct {
 	body     []byte
 }
 
-var Trickest *Request
+var CVEDB *Request
 
 func New() *Request {
 	r := new(Request)

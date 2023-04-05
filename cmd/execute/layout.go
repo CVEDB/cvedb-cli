@@ -1,8 +1,8 @@
 package execute
 
 import (
+	"cvedb-cli/types"
 	"sort"
-	"trickest-cli/types"
 )
 
 func treeHeight(root *types.TreeNode) int {

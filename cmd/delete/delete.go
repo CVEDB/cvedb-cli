@@ -1,14 +1,15 @@
 package delete
 
 import (
+	"cvedb-cli/client/request"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/util"
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strings"
-	"trickest-cli/client/request"
-	"trickest-cli/cmd/list"
-	"trickest-cli/util"
+
+	"github.com/google/uuid"
 
 	"github.com/spf13/cobra"
 )
@@ -16,7 +17,7 @@ import (
 // DeleteCmd represents the delete command
 var DeleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Deletes an object on the Trickest platform",
+	Short: "Deletes an object on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()
@@ -58,7 +59,7 @@ func deleteSpace(name string, id uuid.UUID) {
 		id = space.ID
 	}
 
-	resp := request.Trickest.Delete().DoF("spaces/%s/", id.String())
+	resp := request.CVEDB.Delete().DoF("spaces/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete space with ID: " + id.String())
 		os.Exit(0)
@@ -72,7 +73,7 @@ func deleteSpace(name string, id uuid.UUID) {
 }
 
 func DeleteProject(id uuid.UUID) {
-	resp := request.Trickest.Delete().DoF("projects/%s/", id.String())
+	resp := request.CVEDB.Delete().DoF("projects/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete project with ID: " + id.String())
 		os.Exit(0)
@@ -86,7 +87,7 @@ func DeleteProject(id uuid.UUID) {
 }
 
 func deleteWorkflow(id uuid.UUID) {
-	resp := request.Trickest.Delete().DoF("store/workflow/%s/", id.String())
+	resp := request.CVEDB.Delete().DoF("store/workflow/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete workflow with ID: " + id.String())
 		os.Exit(0)
