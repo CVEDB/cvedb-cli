@@ -2,16 +2,16 @@ package create
 
 import (
 	"bytes"
+	"cvedb-cli/cmd/delete"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
-	"trickest-cli/cmd/delete"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
-	"trickest-cli/util"
 
 	"github.com/spf13/cobra"
 )
@@ -21,7 +21,7 @@ var description string
 // CreateCmd represents the create command
 var CreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Creates a space or a project on the Trickest platform",
+	Short: "Creates a space or a project on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()

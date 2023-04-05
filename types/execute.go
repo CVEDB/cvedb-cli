@@ -140,15 +140,15 @@ type Splitter struct {
 }
 
 type FilesResponse struct {
-	Next     string         `json:"next"`
-	Previous string         `json:"previous"`
-	Page     int            `json:"page"`
-	Last     int            `json:"last"`
-	Count    int            `json:"count"`
-	Results  []TrickestFile `json:"results"`
+	Next     string      `json:"next"`
+	Previous string      `json:"previous"`
+	Page     int         `json:"page"`
+	Last     int         `json:"last"`
+	Count    int         `json:"count"`
+	Results  []CVEDBFile `json:"results"`
 }
 
-type TrickestFile struct {
+type CVEDBFile struct {
 	Id           string    `json:"id"`
 	Name         string    `json:"name"`
 	VaultInfo    string    `json:"vault_info"`

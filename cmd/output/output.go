@@ -11,9 +11,9 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
-	"trickest-cli/util"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"

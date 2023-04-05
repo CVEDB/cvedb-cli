@@ -1,12 +1,12 @@
 package delete
 
 import (
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"fmt"
 	"net/http"
 	"strings"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
-	"trickest-cli/util"
 
 	"github.com/spf13/cobra"
 )
@@ -14,7 +14,7 @@ import (
 // DeleteCmd represents the delete command
 var DeleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Deletes an object on the Trickest platform",
+	Short: "Deletes an object on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()

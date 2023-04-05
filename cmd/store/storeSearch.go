@@ -1,16 +1,17 @@
 package store
 
 import (
+	"cvedb-cli/cmd/list"
 	"fmt"
-	"github.com/spf13/cobra"
 	"math"
-	"trickest-cli/cmd/list"
+
+	"github.com/spf13/cobra"
 )
 
 // storeSearchCmd represents the storeSearch command
 var storeSearchCmd = &cobra.Command{
 	Use:   "search",
-	Short: "Search for workflows and tools in the Trickest store",
+	Short: "Search for workflows and tools in the CVEDB store",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		search := ""

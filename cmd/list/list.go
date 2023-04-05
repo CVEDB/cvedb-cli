@@ -1,6 +1,8 @@
 package list
 
 import (
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +12,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"trickest-cli/types"
-	"trickest-cli/util"
 
 	"github.com/spf13/cobra"
 	"github.com/xlab/treeprint"
@@ -20,7 +20,7 @@ import (
 // ListCmd represents the list command
 var ListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Lists objects on the Trickest platform",
+	Short: "Lists objects on the CVEDB platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"cvedb-cli/types"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"trickest-cli/types"
 
 	"github.com/hako/durafmt"
 )
@@ -16,7 +16,7 @@ import (
 type UnexpectedResponse map[string]interface{}
 
 const (
-	BaseURL = "https://hive-api.beta.trickest.com/"
+	BaseURL = "https://hive-api.beta.cvedb.github.io/"
 )
 
 var (
@@ -41,11 +41,11 @@ func FormatPath() string {
 
 func GetToken() string {
 	if Cfg.User.Token == "" {
-		tokenEnv, tokenSet := os.LookupEnv("TRICKEST_TOKEN")
+		tokenEnv, tokenSet := os.LookupEnv("CVEDB_TOKEN")
 		if tokenSet {
 			Cfg.User.Token = tokenEnv
 		} else {
-			fmt.Println("Trickest authentication token not set! Use --token or TRICKEST_TOKEN environment variable.")
+			fmt.Println("CVEDB authentication token not set! Use --token or CVEDB_TOKEN environment variable.")
 			os.Exit(0)
 		}
 	}
@@ -58,7 +58,7 @@ func GetVault() string {
 		if user != nil {
 			Cfg.User.VaultId = user.Profile.VaultInfo.ID
 		} else {
-			fmt.Println("Couldn't get default vault ID! Check your Trickest token.")
+			fmt.Println("Couldn't get default vault ID! Check your CVEDB token.")
 			os.Exit(0)
 		}
 	}

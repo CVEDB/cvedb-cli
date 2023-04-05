@@ -2,9 +2,12 @@ package execute
 
 import (
 	"bytes"
+	"cvedb-cli/cmd/delete"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
-	"github.com/schollz/progressbar/v3"
 	"io"
 	"io/ioutil"
 	"math"
@@ -15,10 +18,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"trickest-cli/cmd/delete"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
-	"trickest-cli/util"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 func getSplitter() *types.Splitter {
@@ -686,7 +687,7 @@ func getNodeNameFromConnectionID(id string) string {
 	return idSplit[1]
 }
 
-func getFiles() []types.TrickestFile {
+func getFiles() []types.CVEDBFile {
 	urlReq := util.Cfg.BaseUrl + "v1/file/?vault=" + util.GetVault()
 	urlReq = urlReq + "&page_size=" + strconv.Itoa(math.MaxInt)
 
@@ -736,14 +737,14 @@ func fileExistsOnPlatform(name string) bool {
 
 func uploadFilesIfNeeded(primitiveNodes map[string]*types.PrimitiveNode) {
 	for _, pNode := range primitiveNodes {
-		if pNode.Type == "FILE" && strings.HasPrefix(pNode.Value.(string), "trickest://file/") {
-			fileName := strings.TrimPrefix(pNode.Value.(string), "trickest://file/")
+		if pNode.Type == "FILE" && strings.HasPrefix(pNode.Value.(string), "cvedb://file/") {
+			fileName := strings.TrimPrefix(pNode.Value.(string), "cvedb://file/")
 			if pNode.UpdateFile != nil && *pNode.UpdateFile {
 				pNode.Label = uploadFile(fileName)
 			} else {
 				if !fileExistsOnPlatform(fileName) {
 					fmt.Println("\"" + fileName + "\" hasn't been uploaded yet or has been deleted from the platform." +
-						" Try uploading it without the \"trickest://file/\" prefix.")
+						" Try uploading it without the \"cvedb://file/\" prefix.")
 					os.Exit(0)
 				}
 			}

@@ -16,11 +16,11 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
-	"trickest-cli/cmd/create"
-	"trickest-cli/cmd/list"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
-	"trickest-cli/util"
+	"cvedb-cli/cmd/create"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 
 	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
@@ -130,8 +130,8 @@ func getToolScriptOrSplitterFromYAMLNode(node types.WorkflowYAMLNode) (*types.To
 			splitter = getSplitter()
 			if splitter == nil {
 				fmt.Println("Couldn't find a tool named " + storeName + " in the store!")
-				fmt.Println("Use \"trickest store list\" to see all available workflows and tools, " +
-					"or search the store using \"trickest store search <name/description>\"")
+				fmt.Println("Use \"cvedb store list\" to see all available workflows and tools, " +
+					"or search the store using \"cvedb store search <name/description>\"")
 				os.Exit(0)
 			}
 		} else {
@@ -355,14 +355,14 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 								}
 								continue
 							} else {
-								if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "trickest://file/") {
+								if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "cvedb://file/") {
 									newPNode.Value = val
 								} else {
 									if _, err = os.Stat(val); errors.Is(err, os.ErrNotExist) {
 										fmt.Println("A file named " + val + " doesn't exist!")
 										os.Exit(0)
 									}
-									newPNode.Value = "trickest://file/" + val
+									newPNode.Value = "cvedb://file/" + val
 									trueVal := true
 									newPNode.UpdateFile = &trueVal
 								}
@@ -546,7 +546,7 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 							if strings.HasPrefix(val, "http") {
 								newPNode.Value = val
 							} else {
-								newPNode.Value = "trickest://file/" + val
+								newPNode.Value = "cvedb://file/" + val
 							}
 						}
 						newPNode.Label = newPNode.Value.(string)
@@ -739,7 +739,7 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 							Value: "in/" + val + "/output.txt",
 						}
 					} else {
-						if _, err = os.Stat(val); errors.Is(err, os.ErrNotExist) && !strings.HasPrefix(val, "trickest://file/") {
+						if _, err = os.Stat(val); errors.Is(err, os.ErrNotExist) && !strings.HasPrefix(val, "cvedb://file/") {
 							fmt.Println("A node with the given ID (" + val + ") doesn't exists in the workflow yaml!")
 							fmt.Println("A file named " + val + " doesn't exist!")
 							os.Exit(0)
@@ -755,10 +755,10 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 									Y float64 `json:"y"`
 								}{0, 0},
 							}
-							if strings.HasPrefix(val, "trickest://file/") {
+							if strings.HasPrefix(val, "cvedb://file/") {
 								newPNode.Value = val
 							} else {
-								newPNode.Value = "trickest://file/" + val
+								newPNode.Value = "cvedb://file/" + val
 								trueVal := true
 								newPNode.UpdateFile = &trueVal
 							}
@@ -1330,8 +1330,8 @@ func prepareForExec(objectPath string) *types.WorkflowVersionDetailed {
 		tools := list.GetTools(math.MaxInt, "", wfName)
 		if tools == nil || len(tools) == 0 {
 			fmt.Println("Couldn't find a workflow or tool named " + wfName + " in the store!")
-			fmt.Println("Use \"trickest store list\" to see all available workflows and tools, " +
-				"or search the store using \"trickest store search <name/description>\"")
+			fmt.Println("Use \"cvedb store list\" to see all available workflows and tools, " +
+				"or search the store using \"cvedb store search <name/description>\"")
 			os.Exit(0)
 		}
 		_, _, primitiveNodes = readConfig(configFile, nil, &tools[0])
@@ -1566,14 +1566,14 @@ func readConfigInputs(config *map[string]interface{}, wfVersion *types.WorkflowV
 					newPNode.Name = "string-input-" + strconv.Itoa(stringInputsCnt)
 					newPNode.Value = val
 				case "FILE":
-					if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "trickest://file/") {
+					if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "cvedb://file/") {
 						newPNode.Value = val
 					} else {
 						if _, err := os.Stat(val); errors.Is(err, os.ErrNotExist) {
 							fmt.Println("A file named " + val + " doesn't exist!")
 							os.Exit(0)
 						}
-						newPNode.Value = "trickest://file/" + val
+						newPNode.Value = "cvedb://file/" + val
 						trueVal := true
 						newPNode.UpdateFile = &trueVal
 					}
@@ -1639,14 +1639,14 @@ func readConfigInputs(config *map[string]interface{}, wfVersion *types.WorkflowV
 					for i, value := range files {
 						switch file := value.(type) {
 						case string:
-							if strings.HasPrefix(file, "http") || strings.HasPrefix(file, "trickest://file/") {
+							if strings.HasPrefix(file, "http") || strings.HasPrefix(file, "cvedb://file/") {
 								newPNode.Value = file
 							} else {
 								if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
 									fmt.Println("A file named " + file + " doesn't exist!")
 									os.Exit(0)
 								}
-								newPNode.Value = "trickest://file/" + file
+								newPNode.Value = "cvedb://file/" + file
 								trueVal := true
 								newPNode.UpdateFile = &trueVal
 							}
@@ -1812,7 +1812,7 @@ func addPrimitiveNodeFromConfig(wfVersion *types.WorkflowVersionDetailed, newPri
 			(*newPrimitiveNodes)[primitiveNode.Name] = &newPNode
 
 			if (oldParam != nil && oldParam.Value != newPNode.Value) ||
-				(newPNode.Type == "FILE" && strings.HasPrefix(newPNode.Value.(string), "trickest://file/")) {
+				(newPNode.Type == "FILE" && strings.HasPrefix(newPNode.Value.(string), "cvedb://file/")) {
 				if newPNode.Type != primitiveNode.Type {
 					processInvalidInputType(newPNode, *primitiveNode)
 				}

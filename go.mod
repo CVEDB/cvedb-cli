@@ -1,4 +1,4 @@
-module trickest-cli
+module cvedb-cli
 
 go 1.17
 

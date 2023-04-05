@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"trickest-cli/cmd/execute"
-	"trickest-cli/cmd/list"
-	"trickest-cli/cmd/output"
-	"trickest-cli/util"
+	"cvedb-cli/cmd/execute"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 )

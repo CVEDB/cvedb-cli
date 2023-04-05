@@ -1,17 +1,18 @@
 package store
 
 import (
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
 	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/xlab/treeprint"
-	"trickest-cli/cmd/list"
-	"trickest-cli/types"
 )
 
 // storeListWorkflowsCmd represents the storeListWorkflows command
 var storeListWorkflowsCmd = &cobra.Command{
 	Use:   "workflows",
-	Short: "List workflows from the Trickest store",
+	Short: "List workflows from the CVEDB store",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		workflows := list.GetWorkflows("", "", "", true)
