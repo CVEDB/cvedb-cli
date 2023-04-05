@@ -1,6 +1,6 @@
 package main
 
-import "trickest-cli/cmd"
+import "cvedb-cli/cmd"
 
 func main() {
 	cmd.Execute()

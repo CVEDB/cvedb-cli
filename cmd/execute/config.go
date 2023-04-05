@@ -9,8 +9,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
 )
 
 func readConfig(fileName string, wfVersion *types.WorkflowVersionDetailed, tool *types.Tool) (
@@ -175,14 +175,14 @@ func readConfigInputs(config *map[string]interface{}, wfVersion *types.WorkflowV
 					newPNode.Name = "string-input-" + strconv.Itoa(stringInputsCnt)
 					newPNode.Value = val
 				case "FILE":
-					if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "trickest://file/") {
+					if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "cvedb://file/") {
 						newPNode.Value = val
 					} else {
 						if _, err := os.Stat(val); errors.Is(err, os.ErrNotExist) {
 							fmt.Println("A file named " + val + " doesn't exist!")
 							os.Exit(0)
 						}
-						newPNode.Value = "trickest://file/" + val
+						newPNode.Value = "cvedb://file/" + val
 						trueVal := true
 						newPNode.UpdateFile = &trueVal
 					}
@@ -248,14 +248,14 @@ func readConfigInputs(config *map[string]interface{}, wfVersion *types.WorkflowV
 					for i, value := range files {
 						switch file := value.(type) {
 						case string:
-							if strings.HasPrefix(file, "http") || strings.HasPrefix(file, "trickest://file/") {
+							if strings.HasPrefix(file, "http") || strings.HasPrefix(file, "cvedb://file/") {
 								newPNode.Value = file
 							} else {
 								if _, err := os.Stat(file); errors.Is(err, os.ErrNotExist) {
 									fmt.Println("A file named " + file + " doesn't exist!")
 									os.Exit(0)
 								}
-								newPNode.Value = "trickest://file/" + file
+								newPNode.Value = "cvedb://file/" + file
 								trueVal := true
 								newPNode.UpdateFile = &trueVal
 							}
@@ -428,7 +428,7 @@ func addPrimitiveNodeFromConfig(wfVersion *types.WorkflowVersionDetailed, newPri
 			(*newPrimitiveNodes)[primitiveNode.Name] = &newPNode
 
 			if (oldParam != nil && oldParam.Value != newPNode.Value) ||
-				(newPNode.Type == "FILE" && strings.HasPrefix(newPNode.Value.(string), "trickest://file/")) {
+				(newPNode.Type == "FILE" && strings.HasPrefix(newPNode.Value.(string), "cvedb://file/")) {
 				if newPNode.Type != primitiveNode.Type {
 					processInvalidInputType(newPNode, *primitiveNode)
 				}

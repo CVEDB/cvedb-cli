@@ -15,9 +15,9 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
-	"trickest-cli/cmd/output"
-	"trickest-cli/types"
-	"trickest-cli/util"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 )
 
 func WatchRun(runID uuid.UUID, downloadPath string, nodesToDownload map[string]output.NodeInfo, timestampOnly bool, machines *types.Bees, showParameters bool) {

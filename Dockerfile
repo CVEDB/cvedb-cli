@@ -10,6 +10,6 @@ RUN env GOOS=linux GOARCH=amd64 go build .
 
 FROM --platform=linux/amd64 alpine:3.16.0
 
-COPY --from=build  /app/trickest-cli /usr/bin/trickest
+COPY --from=build  /app/cvedb-cli /usr/bin/cvedb
 
-ENTRYPOINT ["trickest"]
+ENTRYPOINT ["cvedb"]

@@ -1,22 +1,22 @@
 package cmd
 
 import (
-	"trickest-cli/cmd/create"
-	"trickest-cli/cmd/delete"
-	"trickest-cli/cmd/execute"
-	"trickest-cli/cmd/get"
-	"trickest-cli/cmd/list"
-	"trickest-cli/cmd/output"
-	"trickest-cli/cmd/store"
-	"trickest-cli/util"
+	"cvedb-cli/cmd/create"
+	"cvedb-cli/cmd/delete"
+	"cvedb-cli/cmd/execute"
+	"cvedb-cli/cmd/get"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/cmd/store"
+	"cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 )
 
 // RootCmd represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
-	Use:   "trickest",
-	Short: "Trickest client for platform access from your local machine",
+	Use:   "cvedb",
+	Short: "CVEDB client for platform access from your local machine",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
@@ -30,7 +30,7 @@ func Execute() {
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVar(&util.Cfg.User.Token, "token", "", "Trickest authentication token")
+	RootCmd.PersistentFlags().StringVar(&util.Cfg.User.Token, "token", "", "CVEDB authentication token")
 	RootCmd.PersistentFlags().StringVar(&util.SpaceName, "space", "", "Space name")
 	RootCmd.PersistentFlags().StringVar(&util.ProjectName, "project", "", "Project name")
 	RootCmd.PersistentFlags().StringVar(&util.WorkflowName, "workflow", "", "Workflow name")
