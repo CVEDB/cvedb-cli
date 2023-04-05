@@ -31,6 +31,8 @@ Current workflow categories are:
 
 # Installation
 
+
+Binaries are available in the [latest release](https://github.com/cvedb/cvedb-cli/releases/latest).
 #### **macOS**
 
 ```
@@ -50,7 +52,7 @@ mv ./cvedb-cli-macOS-arm64 /usr/local/bin/cvedb
 cvedb --help
 ```
 
-#### **Linux**
+## Docker
 
 ```
 wget https://github.com/cvedb/cvedb-cli/releases/download/v1.1.3/cvedb-cli-1.1.3-linux-amd64.zip
