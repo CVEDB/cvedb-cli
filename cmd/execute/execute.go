@@ -1,6 +1,11 @@
 package execute
 
 import (
+	"cvedb-cli/cmd/create"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
@@ -11,11 +16,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"cvedb-cli/cmd/create"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

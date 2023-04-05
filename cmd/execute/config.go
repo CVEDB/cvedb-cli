@@ -1,6 +1,8 @@
 package execute
 
 import (
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -9,8 +11,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
 )
 
 func readConfig(fileName string, wfVersion *types.WorkflowVersionDetailed, tool *types.Tool) (

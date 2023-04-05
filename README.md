@@ -31,11 +31,46 @@ Current workflow categories are:
 
 # Installation
 
-## Binary
 
 Binaries are available in the [latest release](https://github.com/cvedb/cvedb-cli/releases/latest).
+#### **macOS**
+
+```
+# Download the binary
+wget https://github.com/cvedb/cvedb-cli/releases/download/v1.1.3/cvedb-cli-1.1.3-macOS-arm64.zip
+
+# Unzip
+unzip cvedb-cli-1.1.3-macOS-arm64.zip
+
+# Make binary executable
+chmod +x cvedb-cli-macOS-arm64
+
+# Move binary to path
+mv ./cvedb-cli-macOS-arm64 /usr/local/bin/cvedb
+
+# Test installation
+cvedb --help
+```
 
 ## Docker
+
+```
+wget https://github.com/cvedb/cvedb-cli/releases/download/v1.1.3/cvedb-cli-1.1.3-linux-amd64.zip
+
+# Unzip
+unzip cvedb-cli-1.1.3-linux-amd64.zip
+
+# Make binary executable
+chmod +x cvedb-cli-linux-amd64
+
+# Move binary to path
+mv ./cvedb-cli-linux-amd64 /usr/local/bin/cvedb
+
+# Test installation
+cvedb --help
+```
+
+#### Docker
 
 ```
 docker run quay.io/cvedb/cvedb-cli

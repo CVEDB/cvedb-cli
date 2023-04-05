@@ -1,15 +1,15 @@
 package export
 
 import (
+	"cvedb-cli/cmd/execute"
+	"cvedb-cli/cmd/list"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-	"cvedb-cli/cmd/execute"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"

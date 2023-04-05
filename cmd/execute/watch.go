@@ -2,6 +2,9 @@ package execute
 
 import (
 	"bytes"
+	"cvedb-cli/cmd/output"
+	"cvedb-cli/types"
+	"cvedb-cli/util"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gosuri/uilive"
@@ -15,9 +18,6 @@ import (
 	"sync"
 	"text/tabwriter"
 	"time"
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 )
 
 func WatchRun(runID uuid.UUID, downloadPath string, nodesToDownload map[string]output.NodeInfo, timestampOnly bool, machines *types.Bees, showParameters bool) {

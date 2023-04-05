@@ -1,14 +1,14 @@
 package get
 
 import (
-	"fmt"
-	"strings"
-	"time"
 	"cvedb-cli/cmd/execute"
 	"cvedb-cli/cmd/list"
 	"cvedb-cli/cmd/output"
 	"cvedb-cli/types"
 	"cvedb-cli/util"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
