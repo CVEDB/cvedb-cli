@@ -45,9 +45,9 @@ docker run quay.io/cvedb/cvedb-cli
 
 You can find your authentication token on [My Account](https://cvedb.io/dashboard/settings/my-account) page inside the the CVEDB platform.
 
-The authentication token can be provided as a flag `--token` or an environment variable `TRICKEST_TOKEN` to the cvedb-cli.
+The authentication token can be provided as a flag `--token` or an environment variable `CVEDB_TOKEN` to the cvedb-cli.
 
-The `TRICKEST_TOKEN` supplied as `--token` will take priority if both are present.
+The `CVEDB_TOKEN` supplied as `--token` will take priority if both are present.
 
 # Usage
 
@@ -131,6 +131,7 @@ cvedb execute --workflow <workflow_or_tool_name> --space <space_name> --config <
 #### Provide parameters using **config.yaml** file
 
 Use config.yaml file provided using `--config`` flag to specify:
+
 * inputs values
 * execution parallelism by machine type
 * outputs to be downloaded.
@@ -167,7 +168,7 @@ Example GitHub action usage
       id: cvedb
       uses: cvedb/action@main
       env:
-        TRICKEST_TOKEN: "${{ secrets.TRICKEST_TOKEN }}"
+        CVEDB_TOKEN: "${{ secrets.CVEDB_TOKEN }}"
       with:
         workflow: "Example Workflow"
         space: "Example Space"

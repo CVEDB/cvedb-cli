@@ -47,11 +47,11 @@ func FormatPath() string {
 
 func GetToken() string {
 	if Cfg.User.Token == "" {
-		tokenEnv, tokenSet := os.LookupEnv("TRICKEST_TOKEN")
+		tokenEnv, tokenSet := os.LookupEnv("CVEDB_TOKEN")
 		if tokenSet {
 			Cfg.User.Token = tokenEnv
 		} else {
-			fmt.Println("CVEDB authentication token not set! Use --token or TRICKEST_TOKEN environment variable.")
+			fmt.Println("CVEDB authentication token not set! Use --token or CVEDB_TOKEN environment variable.")
 			os.Exit(0)
 		}
 	}
