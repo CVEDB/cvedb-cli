@@ -9,7 +9,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.8.6
 	github.com/spf13/cobra v1.3.0
 	github.com/xlab/treeprint v1.1.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.0
 )
 
 require (
