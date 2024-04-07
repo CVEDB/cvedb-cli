@@ -34,7 +34,7 @@ type Response struct {
 	body     []byte
 }
 
-var CVEDB *Request
+var Cvedb *Request
 
 func New() *Request {
 	r := new(Request)
@@ -99,7 +99,10 @@ func (r *Request) Verb(verb string) *Request {
 }
 
 func (r *Request) DoF(url string, v ...interface{}) *Response {
-	return r.Do(fmt.Sprintf(url, v...))
+	if len(v) > 0 {
+		url = fmt.Sprintf(url, v...)
+	}
+	return r.Do(url)
 }
 
 func (r *Request) Do(url string) *Response {

@@ -28,7 +28,7 @@ type WorkflowVersion struct {
 }
 
 type TreeNode struct {
-	NodeName     string
+	Name         string
 	Label        string
 	Inputs       *map[string]*NodeInput
 	Printed      bool
@@ -42,15 +42,16 @@ type TreeNode struct {
 }
 
 type CreateRun struct {
-	Bees      Bees      `json:"bees"`
-	VersionID uuid.UUID `json:"workflow_version_info"`
-	HiveInfo  uuid.UUID `json:"hive_info"`
+	Machines  Machines   `json:"machines"`
+	VersionID uuid.UUID  `json:"workflow_version_info"`
+	Vault     uuid.UUID  `json:"vault"`
+	Fleet     *uuid.UUID `json:"fleet,omitempty"`
 }
 
 type CreateRunResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
-	Bees      Bees      `json:"bees"`
+	Machines  Machines  `json:"machines"`
 	VersionID uuid.UUID `json:"workflow_version_info"`
 	HiveInfo  uuid.UUID `json:"hive_info"`
 }
@@ -143,15 +144,15 @@ type Splitter struct {
 }
 
 type FilesResponse struct {
-	Next     string      `json:"next"`
-	Previous string      `json:"previous"`
-	Page     int         `json:"page"`
-	Last     int         `json:"last"`
-	Count    int         `json:"count"`
-	Results  []CVEDBFile `json:"results"`
+	Next     string         `json:"next"`
+	Previous string         `json:"previous"`
+	Page     int            `json:"page"`
+	Last     int            `json:"last"`
+	Count    int            `json:"count"`
+	Results  []CvedbFile `json:"results"`
 }
 
-type CVEDBFile struct {
+type CvedbFile struct {
 	Id           uuid.UUID `json:"id"`
 	Name         string    `json:"name"`
 	VaultInfo    uuid.UUID `json:"vault_info"`

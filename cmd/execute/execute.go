@@ -1,43 +1,48 @@
 package execute
 
 import (
-	"cvedb-cli/cmd/create"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"math"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/cvedb/cvedb-cli/cmd/create"
+	"github.com/cvedb/cvedb-cli/cmd/list"
+	"github.com/cvedb/cvedb-cli/cmd/output"
+	"github.com/cvedb/cvedb-cli/types"
+	"github.com/cvedb/cvedb-cli/util"
+
+	"github.com/google/uuid"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
 var (
-	newWorkflowName   string
-	configFile        string
-	watch             bool
-	showParams        bool
-	executionMachines types.Bees
-	hive              *types.Hive
-	nodesToDownload   = make(map[string]output.NodeInfo, 0)
-	allNodes          map[string]*types.TreeNode
-	roots             []*types.TreeNode
-	workflowYAML      string
-	maxMachines       bool
-	downloadAllNodes  bool
-	outputsDirectory  string
-	outputNodesFlag   string
-	ci                bool
-	createProject     bool
+	newWorkflowName      string
+	configFile           string
+	watch                bool
+	showParams           bool
+	executionMachines    types.Machines
+	fleet                *types.Fleet
+	nodesToDownload      = make(map[string]output.NodeInfo, 0)
+	allNodes             map[string]*types.TreeNode
+	roots                []*types.TreeNode
+	workflowYAML         string
+	maxMachines          bool
+	machineConfiguration string
+	downloadAllNodes     bool
+	outputsDirectory     string
+	outputNodesFlag      string
+	ci                   bool
+	createProject        bool
+	fleetName            string
 )
 
 // ExecuteCmd represents the execute command
@@ -63,8 +68,8 @@ var ExecuteCmd = &cobra.Command{
 			}
 		}
 
-		hive = util.GetHiveInfo()
-		if hive == nil {
+		fleet = util.GetFleetInfo(fleetName)
+		if fleet == nil {
 			return
 		}
 		var version *types.WorkflowVersionDetailed
@@ -72,7 +77,7 @@ var ExecuteCmd = &cobra.Command{
 			// Executing from a file
 			version = readWorkflowYAMLandCreateVersion(workflowYAML, newWorkflowName, path)
 		} else {
-			// Executing an existing workflow or copying from store
+			// Executing an existing workflow or copying from library
 			version = prepareForExec(path)
 		}
 		if version == nil {
@@ -81,8 +86,36 @@ var ExecuteCmd = &cobra.Command{
 		}
 
 		allNodes, roots = CreateTrees(version, false)
-		if maxMachines {
-			executionMachines = version.MaxMachines
+
+		if executionMachines == (types.Machines{}) {
+			if maxMachines {
+				executionMachines = version.MaxMachines
+			} else if machineConfiguration != "" {
+				machines, err := parseMachineConfiguration(machineConfiguration)
+				if err != nil {
+					fmt.Printf("Error: %s\n", err)
+					os.Exit(1)
+				}
+
+				if len(fleet.Machines) == 3 {
+					// 3 types of machines: small, medium, and large
+					executionMachines = machines
+
+					if machines.Default != nil {
+						fmt.Printf("Error: you need to use the small-medium-large format to specify the numbers of machines (e.g. 1-2-3)")
+						os.Exit(1)
+					}
+				} else {
+					// 1 type of machine
+					executionMachines, err = handleSingleMachineType(*fleet, machines)
+					if err != nil {
+						fmt.Printf("Error: %s\n", err)
+						os.Exit(1)
+					}
+				}
+			} else {
+				executionMachines = setMachinesToMinimum(version.MaxMachines)
+			}
 		}
 
 		outputNodes := make([]string, 0)
@@ -97,8 +130,90 @@ var ExecuteCmd = &cobra.Command{
 			os.Exit(0)
 		}
 
-		createRun(version.ID, watch, &executionMachines, outputNodes, outputsDirectory)
+		createRun(version.ID, fleet.ID, watch, outputNodes, outputsDirectory)
 	},
+}
+
+func parseMachineConfiguration(config string) (types.Machines, error) {
+	pattern := `^\d+-\d+-\d+$`
+	regex := regexp.MustCompile(pattern)
+
+	if regex.MatchString(config) {
+		// 3 types of machines, 3 hyphen-delimited inputs
+		parts := strings.Split(config, "-")
+
+		if len(parts) != 3 {
+			return types.Machines{}, fmt.Errorf("invalid number of machines in machine configuration \"%s\"", config)
+		}
+
+		sizes := make([]int, 3)
+		for index, part := range parts {
+			if size, err := strconv.Atoi(part); err == nil {
+				sizes[index] = size
+			} else {
+				return types.Machines{}, fmt.Errorf("invalid machine configuration \"%s\"", config)
+			}
+		}
+
+		var machines types.Machines
+
+		if sizes[0] != 0 {
+			machines.Small = &sizes[0]
+		}
+
+		if sizes[1] != 0 {
+			machines.Medium = &sizes[1]
+		}
+
+		if sizes[2] != 0 {
+			machines.Large = &sizes[2]
+		}
+
+		return machines, nil
+	}
+
+	// One type of machine
+	val, err := strconv.Atoi(config)
+	if err != nil {
+		return types.Machines{}, fmt.Errorf("invalid machine configuration \"%s\"", config)
+	}
+
+	return types.Machines{Default: &val}, nil
+}
+
+func handleSingleMachineType(fleet types.Fleet, machines types.Machines) (types.Machines, error) {
+	var configMachines types.Machines
+
+	var defaultOrSelfHosted int
+	if machines.Default != nil {
+		defaultOrSelfHosted = *machines.Default
+	} else {
+		// Backward-compatibility with the small-medium-large format
+		if machines.Small != nil {
+			defaultOrSelfHosted += *machines.Small
+		}
+		if machines.Medium != nil {
+			defaultOrSelfHosted += *machines.Medium
+		}
+		if machines.Large != nil {
+			defaultOrSelfHosted += *machines.Large
+		}
+
+		fmt.Printf("Warning: You have one type of machine in your fleet. %d identical or self-hosted machines will be used.\n", defaultOrSelfHosted)
+	}
+
+	if defaultOrSelfHosted == 0 {
+		return types.Machines{}, fmt.Errorf("cannot run the workflow on %d machines", defaultOrSelfHosted)
+	}
+
+	if fleet.Type == "MANAGED" {
+		configMachines.Default = &defaultOrSelfHosted
+	} else if fleet.Type == "HOSTED" {
+		configMachines.SelfHosted = &defaultOrSelfHosted
+	} else {
+		return types.Machines{}, fmt.Errorf("unsupported format. Use small-medium-large (e.g., 0-0-3)")
+	}
+	return configMachines, nil
 }
 
 func init() {
@@ -108,11 +223,13 @@ func init() {
 	ExecuteCmd.Flags().BoolVar(&showParams, "show-params", false, "Show parameters in the workflow tree")
 	// ExecuteCmd.Flags().StringVar(&workflowYAML, "file", "", "Workflow YAML file to execute")
 	ExecuteCmd.Flags().BoolVar(&maxMachines, "max", false, "Use maximum number of machines for workflow execution")
+	ExecuteCmd.Flags().StringVar(&machineConfiguration, "machines", "", "Specify the number of machines. Use one value for default/self-hosted machines (--machines 3) or three values for small-medium-large (--machines 1-1-1)")
 	ExecuteCmd.Flags().BoolVar(&downloadAllNodes, "output-all", false, "Download all outputs when the execution is finished")
 	ExecuteCmd.Flags().StringVar(&outputNodesFlag, "output", "", "A comma separated list of nodes which outputs should be downloaded when the execution is finished")
 	ExecuteCmd.Flags().StringVar(&outputsDirectory, "output-dir", "", "Path to directory which should be used to store outputs")
 	ExecuteCmd.Flags().BoolVar(&ci, "ci", false, "Run in CI mode (in-progreess executions will be stopped when the CLI is forcefully stopped - if not set, you will be asked for confirmation)")
 	ExecuteCmd.Flags().BoolVar(&createProject, "create-project", false, "If the project doesn't exist, create it using the project flag as its name (or workflow name if not set)")
+	ExecuteCmd.Flags().StringVar(&fleetName, "fleet", "", "The name of the fleet to use to execute the workflow")
 }
 
 func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, objectPath string) *types.WorkflowVersionDetailed {
@@ -141,7 +258,7 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 		workflowName = wf.Name
 	}
 
-	space, project, workflow, _ := list.ResolveObjectPath(objectPath, true, false)
+	space, project, workflow, _ := util.ResolveObjectPath(objectPath, true)
 	if space == nil {
 		fmt.Println("Space " + strings.Split(objectPath, "/")[0] + " doesn't exist!")
 		os.Exit(0)
@@ -736,11 +853,7 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 	version := &types.WorkflowVersionDetailed{
 		WorkflowInfo: workflowID,
 		Name:         nil,
-		Data: struct {
-			Nodes          map[string]*types.Node          `json:"nodes"`
-			Connections    []types.Connection              `json:"connections"`
-			PrimitiveNodes map[string]*types.PrimitiveNode `json:"primitiveNodes"`
-		}{
+		Data: types.WorkflowVersionData{
 			Nodes:          nodes,
 			Connections:    connections,
 			PrimitiveNodes: primitiveNodes,
@@ -755,7 +868,7 @@ func readWorkflowYAMLandCreateVersion(fileName string, workflowName string, obje
 }
 
 func createToolWorkflow(wfName string, space *types.SpaceDetailed, project *types.Project, deleteProjectOnError bool,
-	tool *types.Tool, primitiveNodes map[string]*types.PrimitiveNode, machine types.Bees) *types.WorkflowVersionDetailed {
+	tool *types.Tool, primitiveNodes map[string]*types.PrimitiveNode, machine types.Machines) *types.WorkflowVersionDetailed {
 	if tool == nil {
 		fmt.Println("No tool specified, couldn't create a workflow!")
 		os.Exit(0)
@@ -864,11 +977,7 @@ func createToolWorkflow(wfName string, space *types.SpaceDetailed, project *type
 	newVersion := &types.WorkflowVersionDetailed{
 		WorkflowInfo: workflowID,
 		Name:         nil,
-		Data: struct {
-			Nodes          map[string]*types.Node          `json:"nodes"`
-			Connections    []types.Connection              `json:"connections"`
-			PrimitiveNodes map[string]*types.PrimitiveNode `json:"primitiveNodes"`
-		}{
+		Data: types.WorkflowVersionData{
 			Nodes: map[string]*types.Node{
 				node.Name: node,
 			},
@@ -888,9 +997,9 @@ func prepareForExec(objectPath string) *types.WorkflowVersionDetailed {
 	var primitiveNodes map[string]*types.PrimitiveNode
 	projectCreated := false
 
-	space, project, workflow, _ := list.ResolveObjectPath(objectPath, false, false)
-	if space == nil {
-		os.Exit(0)
+	space, project, workflow, _ := util.ResolveObjectPath(objectPath, true)
+	if util.URL != "" {
+		space, project, workflow, _ = util.ResolveObjectURL(util.URL)
 	}
 
 	if workflow != nil && newWorkflowName == "" {
@@ -907,12 +1016,12 @@ func prepareForExec(objectPath string) *types.WorkflowVersionDetailed {
 			}
 		}
 	} else {
-		// Executing from store
+		// Executing from library
 		wfName := pathSplit[len(pathSplit)-1]
-		storeWorkflows := list.GetWorkflows(uuid.Nil, uuid.Nil, wfName, true)
-		if storeWorkflows != nil && len(storeWorkflows) > 0 {
-			// Executing from store
-			for _, wf := range storeWorkflows {
+		libraryWorkflows := util.GetWorkflows(uuid.Nil, uuid.Nil, wfName, true)
+		if libraryWorkflows != nil && len(libraryWorkflows) > 0 {
+			// Executing from library
+			for _, wf := range libraryWorkflows {
 				if strings.ToLower(wf.Name) == strings.ToLower(wfName) {
 					if project == nil && createProject {
 						projectName := util.ProjectName
@@ -931,18 +1040,18 @@ func prepareForExec(objectPath string) *types.WorkflowVersionDetailed {
 						copyDestination += "/" + project.Name
 					}
 					copyDestination += "/" + newWorkflowName
-					fmt.Println("Copying " + wf.Name + " from the store to " + copyDestination)
+					fmt.Println("Copying " + wf.Name + " from the library to " + copyDestination)
 					projID := uuid.Nil
 					if project != nil {
 						projID = project.ID
 					}
 					newWorkflowID := copyWorkflow(space.ID, projID, wf.ID)
 					if newWorkflowID == uuid.Nil {
-						fmt.Println("Couldn't copy workflow from the store!")
+						fmt.Println("Couldn't copy workflow from the library!")
 						os.Exit(0)
 					}
 
-					newWorkflow := list.GetWorkflowByID(newWorkflowID)
+					newWorkflow := util.GetWorkflowByID(newWorkflowID)
 					if newWorkflow.Name != newWorkflowName {
 						newWorkflow.Name = newWorkflowName
 						updateWorkflow(newWorkflow, projectCreated)
@@ -998,9 +1107,9 @@ func prepareForExec(objectPath string) *types.WorkflowVersionDetailed {
 		}
 		tools := list.GetTools(math.MaxInt, "", wfName)
 		if tools == nil || len(tools) == 0 {
-			fmt.Println("Couldn't find a workflow or tool named " + wfName + " in the store!")
-			fmt.Println("Use \"cvedb store list\" to see all available workflows and tools, " +
-				"or search the store using \"cvedb store search <name/description>\"")
+			fmt.Println("Couldn't find a workflow or tool named " + wfName + " in the library!")
+			fmt.Println("Use \"cvedb library list\" to see all available workflows and tools, " +
+				"or search the library using \"cvedb library search <name/description>\"")
 			os.Exit(0)
 		}
 		_, _, primitiveNodes = readConfig(configFile, nil, &tools[0])

@@ -1,11 +1,6 @@
 package create
 
 import (
-	"cvedb-cli/client/request"
-	"cvedb-cli/cmd/delete"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +8,10 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/cvedb/cvedb-cli/client/request"
+	"github.com/cvedb/cvedb-cli/cmd/delete"
+	"github.com/cvedb/cvedb-cli/types"
+	"github.com/cvedb/cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 )
@@ -22,7 +21,7 @@ var description string
 // CreateCmd represents the create command
 var CreateCmd = &cobra.Command{
 	Use:   "create",
-	Short: "Creates a space or a project on the CVEDB platform",
+	Short: "Creates a space or a project on the Cvedb platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		path := util.FormatPath()
@@ -71,7 +70,7 @@ func createSpace(name string, description string) {
 		return
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("spaces/?vault=%s", util.GetVault())
+	resp := request.Cvedb.Post().Body(data).DoF("spaces/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create space.")
 		return
@@ -85,7 +84,7 @@ func createSpace(name string, description string) {
 }
 
 func CreateProject(name string, description string, spaceName string) *types.Project {
-	space := list.GetSpaceByName(spaceName)
+	space := util.GetSpaceByName(spaceName)
 	if space == nil {
 		fmt.Println("The space \"" + spaceName + "\" doesn't exist. Would you like to create it? (Y/N)")
 		var answer string
@@ -112,7 +111,7 @@ func CreateProject(name string, description string, spaceName string) *types.Pro
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("projects/?vault=%s", util.GetVault())
+	resp := request.Cvedb.Post().Body(data).DoF("projects/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create project.")
 		os.Exit(0)
@@ -153,7 +152,7 @@ func CreateWorkflow(name, description string, spaceID, projectID uuid.UUID, dele
 		workflow.ProjectID = &projectID
 	}
 
-	workflows := list.GetWorkflows(projectID, spaceID, name, false)
+	workflows := util.GetWorkflows(projectID, spaceID, name, false)
 	if workflows != nil {
 		for _, wf := range workflows {
 			if wf.Name == name {
@@ -169,7 +168,7 @@ func CreateWorkflow(name, description string, spaceID, projectID uuid.UUID, dele
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("store/workflow/?vault=%s", util.GetVault())
+	resp := request.Cvedb.Post().Body(data).DoF("workflow/?vault=%s", util.GetVault())
 	if resp == nil {
 		fmt.Println("Error: Couldn't create workflow.")
 		os.Exit(0)

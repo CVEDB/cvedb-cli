@@ -1,10 +1,6 @@
 package output
 
 import (
-	"cvedb-cli/client/request"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +11,10 @@ import (
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/cvedb/cvedb-cli/client/request"
+	"github.com/cvedb/cvedb-cli/types"
+	"github.com/cvedb/cvedb-cli/util"
 
 	"github.com/google/uuid"
 
@@ -40,6 +40,7 @@ var (
 	runID        string
 	outputDir    string
 	nodesFlag    string
+	filesFlag    string
 )
 
 // OutputCmd represents the download command
@@ -60,6 +61,11 @@ The YAML config file should be formatted like:
       - bar
 `,
 	Run: func(cmd *cobra.Command, args []string) {
+		_, _, workflow, found := util.GetObjects(args)
+		if !found {
+			return
+		}
+
 		nodes := make(map[string]NodeInfo, 0)
 		if nodesFlag != "" {
 			for _, node := range strings.Split(nodesFlag, ",") {
@@ -67,27 +73,10 @@ The YAML config file should be formatted like:
 			}
 		}
 
-		path := util.FormatPath()
-		if path == "" {
-			if len(args) == 0 {
-				fmt.Println("Workflow path must be specified!")
-				return
-			}
-			path = strings.Trim(args[0], "/")
-			if len(args) > 1 {
-				for i := 1; i < len(args); i++ {
-					nodes[strings.ReplaceAll(args[i], "/", "-")] = NodeInfo{ToFetch: true, Found: false}
-				}
-			}
-		} else {
-			if util.WorkflowName == "" {
-				fmt.Println("Workflow must be specified!")
-				return
-			}
-			if len(args) > 0 {
-				for i := 0; i < len(args); i++ {
-					nodes[strings.ReplaceAll(args[i], "/", "-")] = NodeInfo{ToFetch: true, Found: false}
-				}
+		var files []string
+		if filesFlag != "" {
+			for _, file := range strings.Split(filesFlag, ",") {
+				files = append(files, file)
 			}
 		}
 
@@ -116,13 +105,14 @@ The YAML config file should be formatted like:
 			}
 		}
 
-		_, _, workflow, found := list.ResolveObjectPath(path, false, false)
-		if !found {
-			return
-		}
-
 		runs := make([]types.Run, 0)
 
+		if runID == "" && util.URL != "" {
+			workflowURLRunID, err := util.GetRunIDFromWorkflowURL(util.URL)
+			if err == nil {
+				runID = workflowURLRunID
+			}
+		}
 		if allRuns {
 			numberOfRuns = math.MaxInt
 		}
@@ -144,16 +134,12 @@ The YAML config file should be formatted like:
 			runs = []types.Run{*run}
 		}
 
-		if numberOfRuns == 1 && (runs[0].Status == "SCHEDULED" || runs[0].CreationType == types.RunCreationScheduled) {
+		if numberOfRuns == 1 && runs[0].Status == "SCHEDULED" {
 			runs = GetRuns(workflow.ID, numberOfRuns+1)
 			runs = append(runs, runs...)
 		}
 
-		version := GetWorkflowVersionByID(runs[0].WorkflowVersionInfo)
-		if version == nil {
-			return
-		}
-
+		path := util.FormatPath()
 		if outputDir != "" {
 			path = outputDir
 		}
@@ -161,7 +147,7 @@ The YAML config file should be formatted like:
 			if run.Status == "SCHEDULED" {
 				continue
 			}
-			DownloadRunOutput(&run, nodes, version, path)
+			DownloadRunOutput(&run, nodes, files, path)
 		}
 	},
 }
@@ -173,28 +159,27 @@ func init() {
 	OutputCmd.Flags().StringVar(&runID, "run", "", "Download output data of a specific run")
 	OutputCmd.Flags().StringVar(&outputDir, "output-dir", "", "Path to directory which should be used to store outputs")
 	OutputCmd.Flags().StringVar(&nodesFlag, "nodes", "", "A comma-separated list of nodes whose outputs should be downloaded")
+	OutputCmd.Flags().StringVar(&filesFlag, "files", "", "A comma-separated list of file names that should be downloaded from the selected node")
 }
 
-func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types.WorkflowVersionDetailed, destinationPath string) {
+func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, files []string, destinationPath string) {
 	if run.Status != "COMPLETED" && run.Status != "STOPPED" && run.Status != "FAILED" {
 		fmt.Println("The workflow run hasn't been completed yet!")
 		fmt.Println("Run ID: " + run.ID.String() + "   Status: " + run.Status)
 		return
 	}
 
-	if version == nil {
-		version = GetWorkflowVersionByID(run.WorkflowVersionInfo)
-	}
+	version := GetWorkflowVersionByID(*run.WorkflowVersionInfo, uuid.Nil)
 
-	subJobs := getSubJobs(run.ID)
+	subJobs := getSubJobs(*run.ID)
 	labels := make(map[string]bool)
 
 	for i := range subJobs {
-		subJobs[i].Label = version.Data.Nodes[subJobs[i].NodeName].Meta.Label
+		subJobs[i].Label = version.Data.Nodes[subJobs[i].Name].Meta.Label
 		subJobs[i].Label = strings.ReplaceAll(subJobs[i].Label, "/", "-")
 		if labels[subJobs[i].Label] {
 			existingLabel := subJobs[i].Label
-			subJobs[i].Label = subJobs[i].NodeName
+			subJobs[i].Label = subJobs[i].Name
 			if labels[subJobs[i].Label] {
 				subJobs[i].Label += "-1"
 				for c := 1; c >= 1; c++ {
@@ -209,10 +194,10 @@ func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types
 			} else {
 				for s := 0; s < i; s++ {
 					if subJobs[s].Label == existingLabel {
-						subJobs[s].Label = subJobs[s].NodeName
+						subJobs[s].Label = subJobs[s].Name
 						if subJobs[s].Children != nil {
 							for j := range subJobs[s].Children {
-								subJobs[s].Children[j].Label = subJobs[s].Children[j].TaskIndex + "-" + subJobs[s].NodeName
+								subJobs[s].Children[j].Label = strconv.Itoa(subJobs[s].Children[j].TaskIndex) + "-" + subJobs[s].Name
 							}
 						}
 					}
@@ -246,7 +231,7 @@ func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types
 				}
 				subJob.OutputsStatus = updatedSubJob.OutputsStatus
 			}
-			getSubJobOutput(runDir, &subJob, true)
+			getSubJobOutput(runDir, &subJob, files, true)
 		}
 	} else {
 		noneFound := true
@@ -259,9 +244,9 @@ func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types
 			if nameExists {
 				nodes[subJob.Name] = NodeInfo{ToFetch: true, Found: true}
 			}
-			_, nodeIDExists := nodes[subJob.NodeName]
+			_, nodeIDExists := nodes[subJob.Name]
 			if nodeIDExists {
-				nodes[subJob.NodeName] = NodeInfo{ToFetch: true, Found: true}
+				nodes[subJob.Name] = NodeInfo{ToFetch: true, Found: true}
 			}
 			if nameExists || labelExists || nodeIDExists {
 				noneFound = false
@@ -272,11 +257,11 @@ func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types
 					}
 					subJob.OutputsStatus = updatedSubJob.OutputsStatus
 				}
-				getSubJobOutput(runDir, &subJob, true)
+				getSubJobOutput(runDir, &subJob, files, true)
 			}
 		}
 		if noneFound {
-			fmt.Println("Couldn't find any nodes that match given name(s)!")
+			fmt.Printf("No completed node outputs matching your query were found in the \"%s\" run.", run.StartedDate.Format(layout))
 		} else {
 			for nodeName, nodeInfo := range nodes {
 				if !nodeInfo.Found {
@@ -287,15 +272,17 @@ func DownloadRunOutput(run *types.Run, nodes map[string]NodeInfo, version *types
 	}
 }
 
-func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []types.SubJobOutput {
-	if subJob.OutputsStatus != "SAVED" && !subJob.TaskGroup {
-		return nil
+func getSubJobOutput(savePath string, subJob *types.SubJob, files []string, fetchData bool) []types.SubJobOutput {
+	if subJob.Status != "SUCCEEDED" {
+		if subJob.TaskGroup && subJob.Status != "STOPPED" {
+			return nil
+		}
 	}
 
 	urlReq := "subjob-output/?subjob=" + subJob.ID.String()
 	urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-job output data.")
 		return nil
@@ -326,11 +313,11 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 		}
 
 		children := getChildrenSubJobs(subJob.ID)
-		if children == nil || len(children) == 0 {
+		if children == nil {
 			return nil
 		}
 		for j := range children {
-			children[j].Label = children[j].TaskIndex + "-" + subJob.Label
+			children[j].Label = fmt.Sprint(j) + "-" + subJob.Label
 		}
 
 		subJob.Children = make([]types.SubJob, 0)
@@ -339,7 +326,7 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 		results := make([]types.SubJobOutput, 0)
 		if subJob.Children != nil {
 			for _, child := range subJob.Children {
-				childRes := getSubJobOutput(savePath, &child, true)
+				childRes := getSubJobOutput(savePath, &child, files, true)
 				if childRes != nil {
 					results = append(results, childRes...)
 				}
@@ -361,14 +348,15 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 		}
 	}
 
-	for i, output := range subJobOutputs.Results {
-		resp := request.CVEDB.Post().DoF("subjob-output/%s/signed_url/", output.ID)
+	subJobOutputResults := filterSubJobOutputsByFileNames(subJobOutputs.Results, files)
+	for i, output := range subJobOutputResults {
+		resp := request.Cvedb.Get().DoF("subjob-output/%s/signed_url/", output.ID)
 		if resp == nil {
 			fmt.Println("Error: Couldn't get sub-job outputs signed URL.")
 			continue
 		}
 
-		if resp.Status() != http.StatusNotFound && resp.Status() != http.StatusCreated {
+		if resp.Status() != http.StatusNotFound && resp.Status() != http.StatusOK {
 			request.ProcessUnexpectedResponse(resp)
 		}
 
@@ -380,25 +368,25 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 		}
 
 		if resp.Status() == http.StatusNotFound {
-			subJobOutputs.Results[i].SignedURL = "expired"
+			subJobOutputResults[i].SignedURL = "expired"
 		} else {
-			subJobOutputs.Results[i].SignedURL = signedURL.Url
+			subJobOutputResults[i].SignedURL = signedURL.Url
 
 			if fetchData {
-				fileName := subJobOutputs.Results[i].FileName
+				fileName := subJobOutputResults[i].Name
 
-				if fileName != subJobOutputs.Results[i].Path {
-					subDirsPath := strings.TrimSuffix(subJobOutputs.Results[i].Path, fileName)
+				if subJobOutputResults[i].Path != "" {
+					subDirsPath := path.Join(savePath, subJobOutputResults[i].Path)
 					err := os.MkdirAll(subDirsPath, 0755)
 					if err != nil {
 						fmt.Println(err)
 						fmt.Println("Couldn't create a directory to store run output!")
 						os.Exit(0)
 					}
-					fileName = subJobOutputs.Results[i].Path
+					fileName = path.Join(subDirsPath, fileName)
+				} else {
+					fileName = path.Join(savePath, fileName)
 				}
-
-				fileName = path.Join(savePath, fileName)
 
 				outputFile, err := os.Create(fileName)
 				if err != nil {
@@ -446,11 +434,29 @@ func getSubJobOutput(savePath string, subJob *types.SubJob, fetchData bool) []ty
 		}
 	}
 
-	return subJobOutputs.Results
+	return subJobOutputResults
+}
+
+func filterSubJobOutputsByFileNames(outputs []types.SubJobOutput, fileNames []string) []types.SubJobOutput {
+	if fileNames == nil {
+		return outputs
+	}
+
+	var matchingOutputs []types.SubJobOutput
+	for _, output := range outputs {
+		for _, fileName := range fileNames {
+			if output.Name == fileName {
+				matchingOutputs = append(matchingOutputs, output)
+				break
+			}
+		}
+	}
+
+	return matchingOutputs
 }
 
 func GetRunByID(id uuid.UUID) *types.Run {
-	resp := request.CVEDB.Get().DoF("run/%s/", id)
+	resp := request.Cvedb.Get().DoF("execution/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get run!")
 		os.Exit(0)
@@ -475,10 +481,10 @@ func getSubJobs(runID uuid.UUID) []types.SubJob {
 		fmt.Println("Couldn't list sub-jobs, no run ID parameter specified!")
 		return nil
 	}
-	urlReq := "subjob/?run=" + runID.String()
+	urlReq := "subjob/?execution=" + runID.String()
 	urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-jobs!")
 		return nil
@@ -499,7 +505,7 @@ func getSubJobs(runID uuid.UUID) []types.SubJob {
 }
 
 func GetRuns(workflowID uuid.UUID, pageSize int) []types.Run {
-	urlReq := "run/?vault=" + util.GetVault().String()
+	urlReq := "execution/?type=Editor&vault=" + util.GetVault().String()
 
 	if workflowID != uuid.Nil {
 		urlReq += "&workflow=" + workflowID.String()
@@ -511,7 +517,7 @@ func GetRuns(workflowID uuid.UUID, pageSize int) []types.Run {
 		urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
 	}
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get runs!")
 		return nil
@@ -531,8 +537,8 @@ func GetRuns(workflowID uuid.UUID, pageSize int) []types.Run {
 	return runs.Results
 }
 
-func GetWorkflowVersionByID(id uuid.UUID) *types.WorkflowVersionDetailed {
-	resp := request.CVEDB.Get().DoF("store/workflow-version/%s/", id)
+func GetWorkflowVersionByID(versionID, fleetID uuid.UUID) *types.WorkflowVersionDetailed {
+	resp := request.Cvedb.Get().DoF("workflow-version/%s/", versionID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get workflow version!")
 		return nil
@@ -549,17 +555,45 @@ func GetWorkflowVersionByID(id uuid.UUID) *types.WorkflowVersionDetailed {
 		return nil
 	}
 
+	if fleetID != uuid.Nil {
+		maxMachines, err := GetWorkflowVersionMaxMachines(versionID, fleetID)
+		if err != nil {
+			fmt.Printf("Error getting maximum machines: %v", err)
+			return nil
+		}
+		workflowVersion.MaxMachines = maxMachines
+
+	}
 	return &workflowVersion
 }
 
-func getChildrenSubJobs(subJobID uuid.UUID) []types.SubJob {
-	urlReq := "subjob/" + subJobID.String() + "/children/"
-	urlReq += "?page_size=" + strconv.Itoa(math.MaxInt)
+func GetWorkflowVersionMaxMachines(version, fleet uuid.UUID) (types.Machines, error) {
+	resp := request.Cvedb.Get().DoF("workflow-version/%s/max-machines/?fleet=%s", version, fleet)
+	if resp == nil {
+		return types.Machines{}, fmt.Errorf("couldn't get workflow version's maximum machines")
+	}
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	if resp.Status() != http.StatusOK {
+		request.ProcessUnexpectedResponse(resp)
+	}
+
+	var machines types.Machines
+	err := json.Unmarshal(resp.Body(), &machines)
+	if err != nil {
+		return types.Machines{}, fmt.Errorf("couldn't unmarshal workflow versions's maximum machines: %v", err)
+	}
+
+	return machines, nil
+}
+
+func getChildrenSubJobsCount(subJobID uuid.UUID) int {
+	urlReq := "subjob/children/?parent=" + subJobID.String()
+	urlReq += "&page_size=" + strconv.Itoa(math.MaxInt)
+
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get children sub-jobs!")
-		return nil
+		return 0
 	}
 
 	if resp.Status() != http.StatusOK {
@@ -570,14 +604,55 @@ func getChildrenSubJobs(subJobID uuid.UUID) []types.SubJob {
 	err := json.Unmarshal(resp.Body(), &subJobs)
 	if err != nil {
 		fmt.Println("Error unmarshalling sub-job children response!")
+		return 0
+	}
+
+	return subJobs.Count
+}
+
+func getChildrenSubJobs(subJobID uuid.UUID) []types.SubJob {
+	subJobCount := getChildrenSubJobsCount(subJobID)
+	if subJobCount == 0 {
+		fmt.Println("Error: Couldn't find children sub-jobs!")
 		return nil
 	}
 
-	return subJobs.Results
+	var subJobs []types.SubJob
+
+	urlReq := "subjob/children/?parent=" + subJobID.String()
+	urlReq += "&task_index="
+
+	for i := 1; i <= subJobCount; i++ {
+		urlReqForIndex := urlReq + strconv.Itoa(i)
+		resp := request.Cvedb.Get().DoF(urlReqForIndex)
+		if resp == nil {
+			fmt.Printf("Error: Couldn't get child sub-job: %d", i)
+			continue
+		}
+		if resp.Status() != http.StatusOK {
+			request.ProcessUnexpectedResponse(resp)
+		}
+
+		var child types.SubJobs
+
+		err := json.Unmarshal(resp.Body(), &child)
+		if err != nil {
+			fmt.Println("Error unmarshalling sub-job child response!")
+			continue
+		}
+
+		if len(child.Results) < 1 {
+			fmt.Println("Error: Unexpected sub-job child response!")
+			continue
+		}
+		subJobs = append(subJobs, child.Results...)
+	}
+
+	return subJobs
 }
 
 func getSubJobByID(id uuid.UUID) *types.SubJob {
-	resp := request.CVEDB.Get().DoF("subjob/%s/", id)
+	resp := request.Cvedb.Get().DoF("subjob/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-job!")
 		return nil
@@ -590,7 +665,7 @@ func getSubJobByID(id uuid.UUID) *types.SubJob {
 	var subJob types.SubJob
 	err := json.Unmarshal(resp.Body(), &subJob)
 	if err != nil {
-		fmt.Println("Error unmarshalling sub-job response!")
+		fmt.Println(err)
 		return nil
 	}
 

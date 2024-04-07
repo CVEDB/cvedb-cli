@@ -1,6 +1,6 @@
 package main
 
-import "cvedb-cli/cmd"
+import "github.com/cvedb/cvedb-cli/cmd"
 
 func main() {
 	cmd.Execute()

@@ -1,15 +1,15 @@
 package export
 
 import (
-	"cvedb-cli/cmd/execute"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/cvedb/cvedb-cli/cmd/execute"
+	"github.com/cvedb/cvedb-cli/types"
+	"github.com/cvedb/cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -39,21 +39,7 @@ var ExportCmd = &cobra.Command{
 	Short: "Exports a workflow to a YAML file",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		path := util.FormatPath()
-		if path == "" {
-			if len(args) == 0 {
-				fmt.Println("Workflow path must be specified!")
-				return
-			}
-			path = strings.Trim(args[0], "/")
-		} else {
-			if len(args) > 0 {
-				fmt.Println("Please use either path or flag syntax for the platform objects.")
-				return
-			}
-		}
-
-		_, _, workflow, found := list.ResolveObjectPath(path, false, false)
+		_, _, workflow, found := util.GetObjects(args)
 		if !found {
 			return
 		}
@@ -88,8 +74,8 @@ func createYAML(workflow *types.Workflow, destinationPath string) {
 	w := workflowExport{
 		Steps: make([]nodeExport, 0),
 	}
-	if workflow.WorkflowCategory != nil {
-		w.Category = &workflow.WorkflowCategory.Name
+	if workflow.WorkflowCategory != "" {
+		w.Category = &workflow.WorkflowCategory
 	}
 	w.Name = workflow.Name
 	version := execute.GetLatestWorkflowVersion(workflow.ID)

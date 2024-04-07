@@ -1,15 +1,13 @@
 package delete
 
 import (
-	"cvedb-cli/client/request"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/util"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/google/uuid"
+	"github.com/cvedb/cvedb-cli/client/request"
+	"github.com/cvedb/cvedb-cli/util"
 
 	"github.com/spf13/cobra"
 )
@@ -17,24 +15,10 @@ import (
 // DeleteCmd represents the delete command
 var DeleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Deletes an object on the CVEDB platform",
+	Short: "Deletes an object on the Cvedb platform",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		path := util.FormatPath()
-		if path == "" {
-			if len(args) == 0 {
-				fmt.Println("You must specify the path of the object to be deleted!")
-				return
-			}
-			path = strings.Trim(args[0], "/")
-		} else {
-			if len(args) > 0 {
-				fmt.Println("Please use either path or flag syntax for the platform objects.")
-				return
-			}
-		}
-
-		space, project, workflow, found := list.ResolveObjectPath(path, false, util.WorkflowName == "")
+		space, project, workflow, found := util.GetObjects(args)
 		if !found {
 			return
 		}
@@ -51,7 +35,7 @@ var DeleteCmd = &cobra.Command{
 
 func deleteSpace(name string, id uuid.UUID) {
 	if id == uuid.Nil {
-		space := list.GetSpaceByName(name)
+		space := util.GetSpaceByName(name)
 		if space == nil {
 			fmt.Println("Couldn't find space named " + name + "!")
 			os.Exit(0)
@@ -59,7 +43,7 @@ func deleteSpace(name string, id uuid.UUID) {
 		id = space.ID
 	}
 
-	resp := request.CVEDB.Delete().DoF("spaces/%s/", id.String())
+	resp := request.Cvedb.Delete().DoF("spaces/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete space with ID: " + id.String())
 		os.Exit(0)
@@ -73,7 +57,7 @@ func deleteSpace(name string, id uuid.UUID) {
 }
 
 func DeleteProject(id uuid.UUID) {
-	resp := request.CVEDB.Delete().DoF("projects/%s/", id.String())
+	resp := request.Cvedb.Delete().DoF("projects/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete project with ID: " + id.String())
 		os.Exit(0)
@@ -87,7 +71,7 @@ func DeleteProject(id uuid.UUID) {
 }
 
 func deleteWorkflow(id uuid.UUID) {
-	resp := request.CVEDB.Delete().DoF("store/workflow/%s/", id.String())
+	resp := request.Cvedb.Delete().DoF("workflow/%s/", id.String())
 	if resp == nil {
 		fmt.Println("Couldn't delete workflow with ID: " + id.String())
 		os.Exit(0)

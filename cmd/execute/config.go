@@ -1,16 +1,18 @@
 package execute
 
 import (
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+
+	"github.com/cvedb/cvedb-cli/cmd/output"
+	"github.com/cvedb/cvedb-cli/types"
+
+	"gopkg.in/yaml.v3"
 )
 
 func readConfig(fileName string, wfVersion *types.WorkflowVersionDetailed, tool *types.Tool) (
@@ -391,13 +393,13 @@ func addPrimitiveNodeFromConfig(wfVersion *types.WorkflowVersionDetailed, newPri
 			continue
 		}
 		isSplitter := strings.HasPrefix(node.Name, "file-splitter") || strings.HasPrefix(node.Name, "split-to-string")
-		if strings.HasSuffix(connection.Destination.ID, node.Name+"/"+paramName) ||
-			(isSplitter && strings.HasSuffix(connection.Destination.ID, node.Name+"/multiple/"+source)) ||
-			(node.Script != nil && (strings.HasSuffix(connection.Destination.ID,
+		if strings.Contains(connection.Destination.ID, node.Name+"/"+paramName) ||
+			(isSplitter && strings.Contains(connection.Destination.ID, node.Name+"/multiple/"+source)) ||
+			(node.Script != nil && (strings.Contains(connection.Destination.ID,
 				node.Name+"/"+strings.ToLower(newPNode.Type)+"/"+source))) {
 			connectionFound = true
 			primitiveNodeName := getNodeNameFromConnectionID(connection.Source.ID)
-			if strings.HasSuffix(connection.Destination.ID, node.Name+"/"+paramName) && newPNode.Name != primitiveNodeName {
+			if strings.Contains(connection.Destination.ID, node.Name+"/"+paramName) && newPNode.Name != primitiveNodeName {
 				// delete(wfVersion.Data.PrimitiveNodes, newPNode.Name)
 				pNode, ok := wfVersion.Data.PrimitiveNodes[primitiveNodeName]
 				if !ok {
@@ -510,13 +512,13 @@ func readConfigOutputs(config *map[string]interface{}) map[string]output.NodeInf
 	return downloadNodes
 }
 
-func readConfigMachines(config *map[string]interface{}, isTool bool, maximumMachines *types.Bees) *types.Bees {
+func readConfigMachines(config *map[string]interface{}, isTool bool, maximumMachines *types.Machines) *types.Machines {
 	if !isTool && maximumMachines == nil {
 		fmt.Println("No maximum machines specified!")
 		os.Exit(0)
 	}
 
-	execMachines := &types.Bees{}
+	execMachines := &types.Machines{}
 	if machines, exists := (*config)["machines"]; exists && machines != nil {
 		machinesList, ok := machines.(map[string]interface{})
 		if !ok {
@@ -610,16 +612,15 @@ func readConfigMachines(config *map[string]interface{}, isTool bool, maximumMach
 		if isTool {
 			oneMachine := 1
 			if maxMachines {
-				return &types.Bees{Large: &oneMachine}
+				return &types.Machines{Large: &oneMachine}
 			} else {
-				return &types.Bees{Small: &oneMachine}
+				return &types.Machines{Small: &oneMachine}
 			}
 		} else {
 			if maxMachines {
 				return maximumMachines
 			} else {
-				execMachines = maximumMachines
-				setMachinesToMinimum(execMachines)
+				*execMachines = setMachinesToMinimum(*maximumMachines)
 			}
 		}
 	}

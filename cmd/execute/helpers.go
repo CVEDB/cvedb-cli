@@ -2,12 +2,6 @@ package execute
 
 import (
 	"bytes"
-	"cvedb-cli/client/request"
-	"cvedb-cli/cmd/delete"
-	"cvedb-cli/cmd/list"
-	"cvedb-cli/cmd/output"
-	"cvedb-cli/types"
-	"cvedb-cli/util"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,13 +14,20 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cvedb/cvedb-cli/client/request"
+	"github.com/cvedb/cvedb-cli/cmd/delete"
+	"github.com/cvedb/cvedb-cli/cmd/list"
+	"github.com/cvedb/cvedb-cli/cmd/output"
+	"github.com/cvedb/cvedb-cli/types"
+	"github.com/cvedb/cvedb-cli/util"
+
 	"github.com/google/uuid"
 
 	"github.com/schollz/progressbar/v3"
 )
 
 func getSplitter() *types.Splitter {
-	resp := request.CVEDB.Get().DoF("store/splitter/")
+	resp := request.Cvedb.Get().DoF("library/splitter/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't get splitter.")
 	}
@@ -60,7 +61,7 @@ func getScriptByName(name string) *types.Script {
 }
 
 func getScripts(pageSize int, search string, name string) []types.Script {
-	urlReq := "store/script/"
+	urlReq := "library/script/"
 	if pageSize > 0 {
 		urlReq = urlReq + "?page_size=" + strconv.Itoa(pageSize)
 	} else {
@@ -77,7 +78,7 @@ func getScripts(pageSize int, search string, name string) []types.Script {
 		urlReq += "&name=" + name
 	}
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get scripts!")
 		return nil
@@ -97,11 +98,12 @@ func getScripts(pageSize int, search string, name string) []types.Script {
 	return scripts.Results
 }
 
-func createRun(versionID uuid.UUID, watch bool, machines *types.Bees, outputNodes []string, outputsDir string) {
+func createRun(versionID, fleetID uuid.UUID, watch bool, outputNodes []string, outputsDir string) {
+
 	run := types.CreateRun{
 		VersionID: versionID,
-		HiveInfo:  hive.ID,
-		Bees:      executionMachines,
+		Machines:  executionMachines,
+		Fleet:     &fleetID,
 	}
 
 	data, err := json.Marshal(run)
@@ -110,7 +112,7 @@ func createRun(versionID uuid.UUID, watch bool, machines *types.Bees, outputNode
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("run/")
+	resp := request.Cvedb.Post().Body(data).DoF("execution/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't create run!")
 		os.Exit(0)
@@ -134,12 +136,12 @@ func createRun(versionID uuid.UUID, watch bool, machines *types.Bees, outputNode
 		watch = true
 	}
 	if watch {
-		WatchRun(createRunResp.ID, outputsDir, nodesToDownload, false, &executionMachines, showParams)
+		WatchRun(createRunResp.ID, outputsDir, nodesToDownload, nil, false, &executionMachines, showParams)
 	} else {
-		availableBees := GetAvailableMachines()
+		availableMachines := GetAvailableMachines(fleetName)
 		fmt.Println("Run successfully created! ID: " + createRunResp.ID.String())
-		fmt.Print("Machines:\n" + FormatMachines(*machines, false))
-		fmt.Print("\nAvailable:\n" + FormatMachines(availableBees, false))
+		fmt.Print("Machines:\n" + FormatMachines(executionMachines, false))
+		fmt.Print("\nAvailable:\n" + FormatMachines(availableMachines, false))
 	}
 }
 
@@ -161,7 +163,7 @@ func createNewVersion(version *types.WorkflowVersionDetailed) *types.WorkflowVer
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("store/workflow-version/")
+	resp := request.Cvedb.Post().Body(data).DoF("workflow-version/")
 	if resp == nil {
 		fmt.Println("Error: Couldn't create version!")
 		os.Exit(0)
@@ -178,7 +180,8 @@ func createNewVersion(version *types.WorkflowVersionDetailed) *types.WorkflowVer
 		return nil
 	}
 
-	newVersion := output.GetWorkflowVersionByID(newVersionInfo.ID)
+	fleet := util.GetFleetInfo(fleetName)
+	newVersion := output.GetWorkflowVersionByID(newVersionInfo.ID, fleet.ID)
 	return newVersion
 }
 
@@ -244,7 +247,7 @@ func uploadFile(filePath string) string {
 }
 
 func GetLatestWorkflowVersion(workflowID uuid.UUID) *types.WorkflowVersionDetailed {
-	resp := request.CVEDB.Get().DoF("store/workflow-version/latest/?workflow=%s", workflowID)
+	resp := request.Cvedb.Get().DoF("workflow-version/latest/?workflow=%s", workflowID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get latest workflow version!")
 		os.Exit(0)
@@ -279,7 +282,7 @@ func copyWorkflow(destinationSpaceID, destinationProjectID, workflowID uuid.UUID
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Post().Body(data).DoF("store/workflow/%s/copy/", workflowID)
+	resp := request.Cvedb.Post().Body(data).DoF("library/workflow/%s/copy/", workflowID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't copy workflow!")
 		os.Exit(0)
@@ -301,14 +304,14 @@ func copyWorkflow(destinationSpaceID, destinationProjectID, workflowID uuid.UUID
 }
 
 func updateWorkflow(workflow *types.Workflow, deleteProjectOnError bool) {
-	workflow.WorkflowCategory = nil
+	workflow.WorkflowCategory = ""
 	data, err := json.Marshal(workflow)
 	if err != nil {
 		fmt.Println("Error marshaling update workflow request!")
 		os.Exit(0)
 	}
 
-	resp := request.CVEDB.Patch().Body(data).DoF("store/workflow/%s/", workflow.ID)
+	resp := request.Cvedb.Patch().Body(data).DoF("workflow/%s/", workflow.ID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't update workflow!")
 		os.Exit(0)
@@ -316,7 +319,7 @@ func updateWorkflow(workflow *types.Workflow, deleteProjectOnError bool) {
 
 	if resp.Status() != http.StatusOK {
 		if deleteProjectOnError {
-			delete.DeleteProject(workflow.ProjectInfo)
+			delete.DeleteProject(*workflow.ProjectInfo)
 		}
 		request.ProcessUnexpectedResponse(resp)
 	}
@@ -355,7 +358,7 @@ func processInvalidInputStructure() {
 	os.Exit(0)
 }
 
-func processMaxMachinesOverflow(maximumMachines types.Bees) {
+func processMaxMachinesOverflow(maximumMachines types.Machines) {
 	fmt.Println("Invalid number or machines!")
 	fmt.Println("The maximum number of machines you can allocate for this workflow: ")
 	fmt.Println(FormatMachines(maximumMachines, false))
@@ -381,28 +384,36 @@ func processInvalidInputType(newPNode, existingPNode types.PrimitiveNode) {
 	os.Exit(0)
 }
 
-func GetAvailableMachines() types.Bees {
-	hiveInfo := util.GetHiveInfo()
-	availableBees := types.Bees{}
-	for _, bee := range hiveInfo.Bees {
-		if bee.Name == "small" {
-			available := bee.Total - bee.Running
-			availableBees.Small = &available
+func GetAvailableMachines(fleetName string) types.Machines {
+	hiveInfo := util.GetFleetInfo(fleetName)
+	availableMachines := types.Machines{}
+	for _, machine := range hiveInfo.Machines {
+		if machine.Name == "small" {
+			available := machine.Total - machine.Running
+			availableMachines.Small = &available
 		}
-		if bee.Name == "medium" {
-			available := bee.Total - bee.Running
-			availableBees.Medium = &available
+		if machine.Name == "medium" {
+			available := machine.Total - machine.Running
+			availableMachines.Medium = &available
 		}
-		if bee.Name == "large" {
-			available := bee.Total - bee.Running
-			availableBees.Large = &available
+		if machine.Name == "large" {
+			available := machine.Total - machine.Running
+			availableMachines.Large = &available
+		}
+		if machine.Name == "default" {
+			available := machine.Total - machine.Running
+			availableMachines.Default = &available
+		}
+		if machine.Name == "self_hosted" {
+			available := machine.Total - machine.Running
+			availableMachines.SelfHosted = &available
 		}
 	}
-	return availableBees
+	return availableMachines
 }
 
 func GetRunByID(id uuid.UUID) *types.Run {
-	resp := request.CVEDB.Get().DoF("run/%s/", id)
+	resp := request.Cvedb.Get().DoF("execution/%s/", id)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get run!")
 		os.Exit(0)
@@ -427,10 +438,10 @@ func GetSubJobs(runID uuid.UUID) []types.SubJob {
 		fmt.Println("Couldn't list sub-jobs, no run ID parameter specified!")
 		os.Exit(0)
 	}
-	urlReq := "subjob/?run=" + runID.String()
+	urlReq := "subjob/?execution=" + runID.String()
 	urlReq = urlReq + "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get sub-jobs!")
 		os.Exit(0)
@@ -451,7 +462,7 @@ func GetSubJobs(runID uuid.UUID) []types.SubJob {
 }
 
 func stopRun(runID uuid.UUID) {
-	resp := request.CVEDB.Post().DoF("run/%s/stop/", runID)
+	resp := request.Cvedb.Post().DoF("execution/%s/stop/", runID)
 	if resp == nil {
 		fmt.Println("Error: Couldn't stop run!")
 		os.Exit(0)
@@ -462,7 +473,7 @@ func stopRun(runID uuid.UUID) {
 	}
 }
 
-func setMachinesToMinimum(machines *types.Bees) {
+func setMachinesToMinimum(machines types.Machines) types.Machines {
 	if machines.Small != nil {
 		*machines.Small = 1
 	}
@@ -472,50 +483,50 @@ func setMachinesToMinimum(machines *types.Bees) {
 	if machines.Large != nil {
 		*machines.Large = 1
 	}
+	if machines.Default != nil {
+		*machines.Default = 1
+	}
+	if machines.SelfHosted != nil {
+		*machines.SelfHosted = 1
+	}
+
+	return machines
 }
 
-func FormatMachines(machines types.Bees, inline bool) string {
-	var small, medium, large string
-	if machines.Small != nil {
-		small = "small: " + strconv.Itoa(*machines.Small)
-	}
-	if machines.Medium != nil {
-		medium = "medium: " + strconv.Itoa(*machines.Medium)
-	}
-	if machines.Large != nil {
-		large = "large: " + strconv.Itoa(*machines.Large)
-	}
+func FormatMachines(machines types.Machines, inline bool) string {
+	smallMachines := formatSize("small", machines.Small)
+	mediumMachines := formatSize("medium", machines.Medium)
+	largeMachines := formatSize("large", machines.Large)
+	selfHostedMachines := formatSize("self hosted", machines.SelfHosted)
+	defaultMachines := formatSize("default", machines.Default)
 
-	out := ""
+	var out string
 	if inline {
-		if small != "" {
-			out = small
-		}
-		if medium != "" {
-			if small != "" {
-				out += ", "
-			}
-			out += medium
-		}
-		if large != "" {
-			if small != "" || medium != "" {
-				out += ", "
-			}
-			out += large
-		}
+		out = joinNonEmptyValues(", ", smallMachines, mediumMachines, largeMachines, selfHostedMachines, defaultMachines)
 	} else {
-		if small != "" {
-			out = " " + small + "\n "
-		}
-		if medium != "" {
-			out += medium + "\n "
-		}
-		if large != "" {
-			out += large + "\n"
+		out = joinNonEmptyValues("\n ", " "+smallMachines, mediumMachines, largeMachines, selfHostedMachines, defaultMachines)
+	}
+	return out
+}
+
+func formatSize(sizeName string, size *int) string {
+	if size != nil {
+		return sizeName + ": " + strconv.Itoa(*size)
+	}
+	return ""
+}
+
+func joinNonEmptyValues(separator string, values ...string) string {
+	var nonEmptyValues []string
+
+	for _, value := range values {
+		if value != "" {
+			nonEmptyValues = append(nonEmptyValues, value)
 		}
 	}
 
-	return out
+	result := strings.Join(nonEmptyValues, separator)
+	return result
 }
 
 func getNodeNameFromConnectionID(id string) string {
@@ -528,11 +539,11 @@ func getNodeNameFromConnectionID(id string) string {
 	return idSplit[1]
 }
 
-func getFiles() []types.CVEDBFile {
+func getFiles() []types.CvedbFile {
 	urlReq := "file/?vault=" + util.GetVault().String()
 	urlReq = urlReq + "&page_size=" + strconv.Itoa(math.MaxInt)
 
-	resp := request.CVEDB.Get().DoF(urlReq)
+	resp := request.Cvedb.Get().DoF(urlReq)
 	if resp == nil {
 		fmt.Println("Error: Couldn't get files!")
 		os.Exit(0)
@@ -580,16 +591,20 @@ func uploadFilesIfNeeded(primitiveNodes map[string]*types.PrimitiveNode) {
 	}
 }
 
-func maxMachinesTypeCompatible(machines, maxMachines types.Bees) bool {
-	if (machines.Small != nil && maxMachines.Small == nil) ||
-		(machines.Medium != nil && maxMachines.Medium == nil) ||
-		(machines.Large != nil && maxMachines.Large == nil) {
+func maxMachinesTypeCompatible(machines, maxMachines types.Machines) bool {
+	return verifyMachineType(machines.Default, maxMachines.Default) &&
+		verifyMachineType(machines.SelfHosted, maxMachines.SelfHosted) &&
+		verifyMachineType(machines.Small, maxMachines.Small) &&
+		verifyMachineType(machines.Medium, maxMachines.Medium) &&
+		verifyMachineType(machines.Large, maxMachines.Large)
+}
+
+func verifyMachineType(machine, maxMachine *int) bool {
+	if machine != nil && maxMachine != nil && *machine > *maxMachine {
 		return false
 	}
 
-	if (machines.Small == nil && maxMachines.Small != nil) ||
-		(machines.Medium == nil && maxMachines.Medium != nil) ||
-		(machines.Large == nil && maxMachines.Large != nil) {
+	if (machine != nil && maxMachine == nil) || (machine == nil && maxMachine != nil) {
 		return false
 	}
 
@@ -605,23 +620,23 @@ func getToolScriptOrSplitterFromYAMLNode(node types.WorkflowYAMLNode) (*types.To
 		fmt.Println("Invalid node ID format: " + node.ID)
 		os.Exit(0)
 	}
-	storeName := strings.TrimSuffix(node.ID, "-"+idSplit[len(idSplit)-1])
+	libraryName := strings.TrimSuffix(node.ID, "-"+idSplit[len(idSplit)-1])
 
 	if node.Script == nil {
-		tools := list.GetTools(1, "", storeName)
+		tools := list.GetTools(1, "", libraryName)
 		if tools == nil || len(tools) == 0 {
 			splitter = getSplitter()
 			if splitter == nil {
-				fmt.Println("Couldn't find a tool named " + storeName + " in the store!")
-				fmt.Println("Use \"cvedb store list\" to see all available workflows and tools, " +
-					"or search the store using \"cvedb store search <name/description>\"")
+				fmt.Println("Couldn't find a tool named " + libraryName + " in the library!")
+				fmt.Println("Use \"cvedb library list\" to see all available workflows and tools, " +
+					"or search the library using \"cvedb library search <name/description>\"")
 				os.Exit(0)
 			}
 		} else {
 			tool = &tools[0]
 		}
 	} else {
-		script = getScriptByName(storeName)
+		script = getScriptByName(libraryName)
 		if script == nil {
 			os.Exit(0)
 		}

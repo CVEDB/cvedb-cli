@@ -1,16 +1,19 @@
 package types
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Config struct {
 	User struct {
-		Token   string
-		VaultId uuid.UUID
+		Token         string
+		TokenFilePath string
+		VaultId       uuid.UUID
 	}
-	BaseUrl string
+	BaseUrl    string
+	Dependency string
 }
 
 type User struct {
@@ -41,25 +44,22 @@ type VaultInfo struct {
 	ModifiedDate time.Time `json:"modified_date"`
 }
 
-type Hives struct {
-	Next     string `json:"next"`
-	Previous string `json:"previous"`
-	Page     int    `json:"page"`
-	Last     int    `json:"last"`
-	Count    int    `json:"count"`
-	Results  []Hive `json:"results"`
+type Fleets struct {
+	Next     string  `json:"next"`
+	Previous string  `json:"previous"`
+	Page     int     `json:"page"`
+	Last     int     `json:"last"`
+	Count    int     `json:"count"`
+	Results  []Fleet `json:"results"`
 }
 
-type Hive struct {
-	ID           uuid.UUID `json:"id"`
-	Name         string    `json:"name"`
-	HiveType     string    `json:"hive_type"`
-	VaultInfo    uuid.UUID `json:"vault_info"`
-	Cluster      string    `json:"cluster"`
-	State        string    `json:"state"`
-	CreatedDate  time.Time `json:"created_date"`
-	ModifiedDate time.Time `json:"modified_date"`
-	Bees         []struct {
+type Fleet struct {
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	Vault    uuid.UUID `json:"vault"`
+	Cluster  string    `json:"cluster"`
+	State    string    `json:"state"`
+	Machines []struct {
 		Name        string `json:"name"`
 		Description string `json:"description"`
 		Mem         string `json:"mem"`
@@ -68,6 +68,9 @@ type Hive struct {
 		Running     int    `json:"running"`
 		Up          int    `json:"up"`
 		Down        int    `json:"down"`
-		Error       int    `json:"error"`
-	} `json:"bees"`
+	} `json:"machines"`
+	CreatedDate  time.Time `json:"created_date"`
+	ModifiedDate time.Time `json:"modified_date"`
+	Type         string    `json:"type"`
+	Default      bool      `json:"default"`
 }
