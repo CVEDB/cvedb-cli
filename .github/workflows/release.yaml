@@ -26,7 +26,7 @@ jobs:
       - name: OS darwin
         if: matrix.goos == 'darwin'
         run: echo "OS_NAME=macOS" >> $GITHUB_ENV
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: wangyoucao577/go-release-action@v1.40
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
