@@ -38,7 +38,7 @@ Binaries are available in the [latest release](https://github.com/cvedb/cvedb-cl
 
 ## Docker
 ```
-docker run quay.io/cvedb/cvedb-cli
+docker run ghcr.io/cvedb/cvedb-cli
 ```
 
 # Authentication
@@ -164,7 +164,7 @@ More example workflow **config.yaml** files can be found in the [Cvedb Workflows
 
 ### Continuous Integration 
 
-You can find the Github Action for the `cvedb-cli` at https://github.com/cvedb/action and the Docker image at https://quay.io/cvedb/cvedb-cli.
+You can find the Github Action for the `cvedb-cli` at https://github.com/cvedb/action and the Docker image at https://ghcr.io/cvedb/cvedb-cli.
 
 The `execute` command can be used as part of a CI pipeline to execute your Cvedb workflows whenever your code or infrastructure changes. Optionally, you can use the `--watch` command inside the action to watch a workflow's progress until it completes. 
 
