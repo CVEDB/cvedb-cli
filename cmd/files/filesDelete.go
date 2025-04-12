@@ -1,13 +1,30 @@
 package files
 
 import (
+	"context"
 	"fmt"
-	"net/http"
-	"strings"
+	"os"
 
+	"github.com/cvedb/cvedb-cli/pkg/cvedb"
+	"github.com/cvedb/cvedb-cli/util"
 	"github.com/spf13/cobra"
-	"github.com/cvedb/cvedb-cli/client/request"
 )
+
+type DeleteConfig struct {
+	Token   string
+	BaseURL string
+
+	FileNames []string
+}
+
+var deleteCfg = &DeleteConfig{}
+
+func init() {
+	FilesCmd.AddCommand(filesDeleteCmd)
+
+	filesDeleteCmd.Flags().StringSliceVar(&deleteCfg.FileNames, "file", []string{}, "File(s) to delete")
+	filesDeleteCmd.MarkFlagRequired("file")
+}
 
 // filesDeleteCmd represents the filesDelete command
 var filesDeleteCmd = &cobra.Command{
@@ -15,54 +32,38 @@ var filesDeleteCmd = &cobra.Command{
 	Short: "Delete files from the Cvedb file storage",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		fileNames := strings.Split(Files, ",")
-		for _, fileName := range fileNames {
-			err := deleteFile(fileName)
-			if err != nil {
-				fmt.Printf("Error: %s\n", err)
-			} else {
-				fmt.Printf("Deleted %s successfully\n", fileName)
-			}
+		deleteCfg.Token = util.GetToken()
+		deleteCfg.BaseURL = util.Cfg.BaseUrl
+		if err := runDelete(deleteCfg); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
 		}
 	},
 }
 
-func init() {
-	FilesCmd.AddCommand(filesDeleteCmd)
-}
-
-func deleteFile(fileName string) error {
-	metadata, err := getMetadata(fileName)
+func runDelete(cfg *DeleteConfig) error {
+	client, err := cvedb.NewClient(
+		cvedb.WithToken(cfg.Token),
+		cvedb.WithBaseURL(cfg.BaseURL),
+	)
 	if err != nil {
-		return fmt.Errorf("couldn't search for %s: %s", fileName, err)
+		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	if len(metadata) == 0 {
-		return fmt.Errorf("couldn't find any matches for %s", fileName)
-	}
+	ctx := context.Background()
 
-	matchFound := false
-	for _, fileMetadata := range metadata {
-		if fileMetadata.Name == fileName {
-			matchFound = true
-			err := deleteFileByID(fileMetadata.ID)
-			if err != nil {
-				return fmt.Errorf("couldn't delete %s: %s", fileMetadata.Name, err)
-			}
+	for _, fileName := range cfg.FileNames {
+		file, err := client.GetFileByName(ctx, fileName)
+		if err != nil {
+			return fmt.Errorf("failed to get file: %w", err)
 		}
-	}
 
-	if !matchFound {
-		return fmt.Errorf("couldn't find any matches for %s", fileName)
-	}
+		err = client.DeleteFile(ctx, file.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete file: %w", err)
+		}
 
-	return nil
-}
-
-func deleteFileByID(fileID string) error {
-	resp := request.Cvedb.Delete().DoF("file/%s/", fileID)
-	if resp == nil || resp.Status() != http.StatusNoContent {
-		return fmt.Errorf("unexpected response status code: %d", resp.Status())
+		fmt.Printf("Deleted file %q successfully\n", fileName)
 	}
 
 	return nil
